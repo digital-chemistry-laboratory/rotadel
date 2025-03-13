@@ -1,0 +1,27 @@
+# Files to ignore in the Git commits
+
+### Coding related
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+# Jupyter Notebook
+.ipynb_checkpoints
+# VS Code
+.vscode
+*.code-workspace
+
+### SLURM jobs related
+slurm*
+node_list*
+*.log
+gfnff_*
+*.out
+*.error
+HT*
+
+### Project related
+# Data folders
+Dunbrack_library
+data
+# All test folders and files
+test*
