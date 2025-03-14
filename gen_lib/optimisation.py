@@ -1,11 +1,12 @@
 from os import PathLike
 from pathlib import Path
 import subprocess
-from morfeus import read_xyz
 import json
 import shutil
+from morfeus import read_xyz
+from morfeus.typing import Array1DStr, Array2DFloat
+
 from .utils import get_atom_count
-from .rotamer import Rotamer
 
 
 def gen_dihedral_constraints(
@@ -178,7 +179,13 @@ def run_constraint_xtb(
 
 
 def replace_backbone(input_file: PathLike | str, output_file: PathLike | str) -> None:
-    """Replace the backbone of the rotamer by a H"""
+    """Replace the backbone of the rotamer by a H.
+    Args:
+        input_file: path to the input xyz file
+        output_file: path to the output xyz file
+    Returns:
+        None, writes the modified structure to the output file
+    """
 
     # Ensure that the output directory exists
     output_file = Path(output_file)
@@ -222,19 +229,24 @@ def replace_backbone(input_file: PathLike | str, output_file: PathLike | str) ->
 
 
 def get_opt_structures(
-    rotamer: Rotamer,
+    rotamer_key: str,
     run_folder: PathLike | str,
     rotamer_xyz: PathLike | str,
     angles_json: PathLike | str,
-) -> Rotamer:
-    """Get the optimised side chain (with the backbone being replaced by an H) and amino acid structures
+) -> tuple[
+    Array1DStr,
+    Array2DFloat,
+    Array1DStr,
+    Array2DFloat,
+]:
+    """Get the optimised geometries of side chain (with the backbone being replaced by an H) and rotamer
     Args:
-        rotamer: Rotamer object
+        rotamer_key: ID of the rotamer
         run_folder: path of folder in which to perform the full optimisation process
         rotamer_xyz: xyz file of the whole rotamer to optimise
         angles_json: json file with the angles extracted from the Dunbrack library
     Returns:
-        Rotamer object with the elements and coordinates of the optimised structures
+        el_whole, coord_whole, el_sidechain, coord_sidechain: elements and coordinates of the optimised structures
     """
 
     run_folder = Path(run_folder)
@@ -248,7 +260,7 @@ def get_opt_structures(
         shutil.rmtree(whole_folder)
     whole_folder.mkdir(parents=True)
 
-    dihedral_constraints = gen_dihedral_constraints(rotamer.key, angles_json)
+    dihedral_constraints = gen_dihedral_constraints(rotamer_key, angles_json)
 
     run_constraint_xtb(
         xyz_file=rotamer_xyz,
@@ -280,11 +292,10 @@ def get_opt_structures(
     # Save the optimised sidechain-H and whole rotamer in dictionary
     el_whole, coord_whole = read_xyz(whole_folder / "xtbopt.xyz")
     el_sidechain, coord_sidechain = read_xyz(sidechain_folder / "xtbopt.xyz")
-    rotamer.set_opt_geometries(
-        el_whole.tolist(),
-        coord_whole.tolist(),
-        el_sidechain.tolist(),
-        coord_sidechain.tolist(),
-    )
 
-    return rotamer
+    return (
+        el_whole,
+        coord_whole,
+        el_sidechain,
+        coord_sidechain,
+    )

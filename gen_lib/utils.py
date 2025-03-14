@@ -5,6 +5,7 @@ import fcntl
 import zipfile
 import shutil
 import numpy as np
+from morfeus.typing import Array1DStr, Array2DFloat
 
 
 @contextlib.contextmanager
@@ -137,3 +138,19 @@ def get_atom_count(xyz_file):
     with open(xyz_file, "r") as file:
         first_line = file.readline().strip()
         return int(first_line)
+
+
+def xyz_string(elements: Array1DStr, coordinates: Array2DFloat) -> str:
+    """
+    Make a XYZ string from elements and coordinates.
+    Args:
+        elements: elements symbols
+        coordinates: coordinates [Å]
+    Returns:
+        XYZ string suitable for RDKit MolFromXYZBlock function
+    """
+    num_atoms = len(elements)
+    xyz_string = f"{num_atoms}\n\n"
+    for element, coords in zip(elements, coordinates):
+        xyz_string += f"{element} {coords[0]} {coords[1]} {coords[2]}\n"
+    return xyz_string

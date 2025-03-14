@@ -3,9 +3,11 @@ from os import PathLike
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from contextlib import nullcontext
+
 from .utils import extract_file_from_zip
 from .rotamer import Rotamer
 from .optimisation import get_opt_structures
+from .descriptors import calc_descriptors
 
 
 def parse_args():
@@ -27,7 +29,7 @@ def main(
     angles_json: PathLike | str,
     xyz_zip: PathLike | str,
     run_path: PathLike | str | None = None,
-):
+):  # TODO: add type hint for return
     """Optimise rotamer geometry and calculate descriptors on it.
     Args:
         rotamer_id: ID of the rotamer
@@ -53,12 +55,17 @@ def main(
         )
 
         # Optimise both whole rotamer and sidechain-H
-        rotamer = get_opt_structures(
-            rotamer=rotamer,
+        el_whole, coord_whole, el_sidechain, coord_sidechain = get_opt_structures(
+            rotamer_key=rotamer_id,
             run_folder=run_folder,
             rotamer_xyz=pre_opt_xyz,
             angles_json=angles_json,
         )
+        rotamer.set_opt_geometries(el_whole, coord_whole, el_sidechain, coord_sidechain)
+
+        # Calculate descriptors
+        descriptors = calc_descriptors(el_sidechain, coord_sidechain)
+        rotamer.descriptors = descriptors
 
     print(rotamer.to_dict())
     return rotamer
