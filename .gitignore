@@ -11,6 +11,7 @@ __pycache__/
 *.code-workspace
 
 ### SLURM jobs related
+submit*
 slurm*
 node_list*
 *.log
@@ -20,8 +21,10 @@ gfnff_*
 HT*
 
 ### Project related
-# Data folders
+# All data folders and files
 Dunbrack_library
-data
+data*
 # All test folders and files
 test*
+# Analysis folder
+analysis

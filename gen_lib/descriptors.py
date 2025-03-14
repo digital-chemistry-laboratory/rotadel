@@ -132,7 +132,7 @@ def calc_descriptors(
     for atom_1, atom_2 in bond_indices:
         if atom_1 == 0 or atom_2 == 0:
             continue
-        bo[(atom_1, atom_2)] = xtb.get_bond_order(
+        bo[f"{atom_1}, {atom_2}"] = xtb.get_bond_order(
             atom_1 + 1, atom_2 + 1
         )  # 1-indexed for Morfeus
     descriptors["bond_orders"] = bo

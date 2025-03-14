@@ -1,5 +1,8 @@
 from typing import Any
 from morfeus.typing import Array1DStr, Array2DFloat
+from os import PathLike
+from pathlib import Path
+import json
 
 
 class Rotamer:
@@ -44,3 +47,14 @@ class Rotamer:
             for descriptor_name, descriptor_value in self.descriptors.items():
                 dictionary[self.key][descriptor_name] = descriptor_value
         return dictionary
+
+    def to_json(self, json_file: str | PathLike) -> None:
+        """Save the rotamer data in a JSON file."""
+        if Path(json_file).exists():
+            with open(json_file, "r") as f:
+                data = json.load(f)
+        else:
+            data = {}
+        data.update(self.to_dict())
+        with open(json_file, "w") as f:
+            json.dump(data, f, indent=4)
