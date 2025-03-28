@@ -1,0 +1,21 @@
+# Charge of side chain at physiological pH (7.4)
+CHARGES_AA = {
+    "I": 0,
+    "C": 0,
+    "M": 0,
+    "F": 0,
+    "T": 0,
+    "N": 0,
+    "Q": 0,
+    "D": -1,
+    "R": +1,
+    "W": 0,
+    "K": +1,
+    "S": 0,
+    "H": 0,
+    "Y": 0,
+    "P": 0,
+    "V": 0,
+    "L": 0,
+    "E": -1,
+}

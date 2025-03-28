@@ -21,9 +21,9 @@ gfnff_*
 HT*
 
 ### Project related
-# All data folders and files
+# All data folders
 Dunbrack_library
-data*
+data*/
 # All test folders and files
 test*
 # Analysis folder
