@@ -39,7 +39,7 @@ def reindex_sidechain(morfeus_dict: dict[int, np.float64]) -> dict[int, np.float
     Returns:
         Dictionary with only the sidechain atoms and 0-indexed
     """
-    return {int(idx) - 1: value for idx, value in morfeus_dict.items() if idx != "1"}
+    return {int(idx) - 1: value for idx, value in morfeus_dict.items() if int(idx) != 1}
 
 
 def calc_descriptors(
