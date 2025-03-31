@@ -3,18 +3,53 @@ from morfeus.typing import Array1DStr, Array2DFloat
 from os import PathLike
 from pathlib import Path
 import json
+import numpy as np
 
 
 class Rotamer:
     """Storing and manipulating data for a rotamer"""
 
-    def __init__(self, key: str) -> None:
+    def __init__(self, key: str, dunbrack_data: dict[str, Any] | None = None) -> None:
         self.key = key
+        self.dunbrack_data = dunbrack_data
         self.rotamer_elements = None
         self.rotamer_coordinates = None
         self.sidechainH_elements = None
         self.sidechainH_coordinates = None
-        self.descriptors = None
+        self.descriptors = {}
+
+    def load_existing_sidechain(self, json_file: str | PathLike) -> bool:
+        """Check if the sidechain already exists in the JSON file and load calculated data if applicable.
+        Args:
+            JSON file with already calculated rotamer data
+        Returns:
+            If same sidechain is already in JSON: True and copy existing data in Rotamer instance attributes.
+            If not: False and does not copy data.
+        """
+        if Path(json_file).exists():
+            with open(json_file, "r") as f:
+                content = json.load(f)
+            for _, existing_rotamer in content.items():
+                if all(
+                    self.dunbrack_data[field] == existing_rotamer[field]
+                    for field in ["res", "chi1", "chi2", "chi3", "chi4"]
+                ):
+                    for name, entry in existing_rotamer.items():
+                        if name not in self.dunbrack_data:
+                            if name == "rotamer":
+                                self.rotamer_elements = np.array(entry["elements"])
+                                self.rotamer_coordinates = np.array(
+                                    entry["coordinates"]
+                                )
+                            elif name == "sidechain-H":
+                                self.sidechainH_elements = np.array(entry["elements"])
+                                self.sidechainH_coordinates = np.array(
+                                    entry["coordinates"]
+                                )
+                            else:
+                                self.descriptors[name] = entry
+                    return True
+        return False
 
     def set_opt_geometries(
         self,
@@ -33,6 +68,7 @@ class Rotamer:
         """Return a json-compatible dictionary with the rotamer data."""
         dictionary = {
             self.key: {
+                **self.dunbrack_data,
                 "rotamer": {
                     "elements": self.rotamer_elements.tolist(),
                     "coordinates": self.rotamer_coordinates.tolist(),
@@ -41,7 +77,7 @@ class Rotamer:
                     "elements": self.sidechainH_elements.tolist(),
                     "coordinates": self.sidechainH_coordinates.tolist(),
                 },
-            }
+            },
         }
         if self.descriptors is not None:
             for descriptor_name, descriptor_value in self.descriptors.items():

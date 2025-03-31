@@ -1,10 +1,10 @@
 from os import PathLike
 from pathlib import Path
 import subprocess
-import json
 import shutil
 from morfeus import read_xyz
 from morfeus.typing import Array1DStr, Array2DFloat
+from typing import Any
 
 from .utils import get_atom_count
 
@@ -12,54 +12,48 @@ from .utils import get_atom_count
 
 
 def gen_dihedral_constraints(
-    rotamer_key: str, angles_json: PathLike | str
+    dunbrack_data: dict[str, Any],
 ) -> list[tuple[list[int], float]]:
     """Generate the dihedral contraints for the specified rotamer.
     Args:
-        rotamer_key: ID of the rotamer
-        angles_json: json file with the angles extracted from the Dunbrack library
+        dunbrack_data: data with angles extracted from the Dunbrack library
     Returns:
         list of tuples for dihedral constraints (1-based atom indices)
     """
-    one_letter_code = rotamer_key[0]
-
-    with open(angles_json, "r") as f:
-        angles = json.load(f)
-
-    rotamer_angles = angles[rotamer_key]
+    res = dunbrack_data["res"]
     chi1, chi2, chi3, chi4 = (
-        rotamer_angles["chi1"],
-        rotamer_angles["chi2"],
-        rotamer_angles["chi3"],
-        rotamer_angles["chi4"],
+        dunbrack_data["chi1"],
+        dunbrack_data["chi2"],
+        dunbrack_data["chi3"],
+        dunbrack_data["chi4"],
     )
 
-    if one_letter_code in ["R", "K"]:
+    if res in ["ARG", "LYS"]:
         dihedral_constraints = [
             ([1, 2, 5, 6], chi1),
             ([2, 5, 6, 7], chi2),
             ([5, 6, 7, 8], chi3),
             ([6, 7, 8, 9], chi4),
         ]
-    elif one_letter_code in ["Q", "M"]:
+    elif res in ["GLN", "MET"]:
         dihedral_constraints = [
             ([1, 2, 5, 6], chi1),
             ([2, 5, 6, 7], chi2),
             ([5, 6, 7, 8], chi3),
         ]
-    elif one_letter_code == "E":
+    elif res == "GLU":
         dihedral_constraints = [
             ([1, 2, 5, 6], chi1),
             ([2, 5, 6, 7], chi2),
             ([5, 6, 7, 9], chi3),
         ]
-    elif one_letter_code in ["C", "P", "S", "T", "V"]:
+    elif res in ["CYS", "PRO", "SER", "THR", "VAL"]:
         dihedral_constraints = [([1, 2, 5, 6], chi1)]
-    elif one_letter_code in ["N", "H", "L", "F", "W"]:
+    elif res in ["ASN", "HIS", "LEU", "PHE", "TRP"]:
         dihedral_constraints = [([1, 2, 5, 6], chi1), ([2, 5, 6, 7], chi2)]
-    elif one_letter_code in ["D", "I"]:
+    elif res in ["ASP", "ILE"]:
         dihedral_constraints = [([1, 2, 5, 6], chi1), ([2, 5, 6, 8], chi2)]
-    elif one_letter_code == "Y":
+    elif res == "TYR":
         dihedral_constraints = [([1, 2, 5, 6], chi1), ([2, 5, 6, 9], chi2)]
 
     return dihedral_constraints
@@ -233,10 +227,9 @@ def replace_backbone(input_file: PathLike | str, output_file: PathLike | str) ->
 
 
 def get_opt_structures(
-    rotamer_key: str,
+    dunbrack_data: dict[str, Any],
     run_folder: PathLike | str,
     rotamer_xyz: PathLike | str,
-    angles_json: PathLike | str,
 ) -> tuple[
     Array1DStr,
     Array2DFloat,
@@ -245,10 +238,9 @@ def get_opt_structures(
 ]:
     """Get the optimised geometries of side chain (with the backbone being replaced by an H) and rotamer
     Args:
-        rotamer_key: ID of the rotamer
+        dunbrack_data: data with angles extracted from the Dunbrack library
         run_folder: path of folder in which to perform the full optimisation process
         rotamer_xyz: xyz file of the whole rotamer to optimise
-        angles_json: json file with the angles extracted from the Dunbrack library
     Returns:
         el_whole, coord_whole, el_sidechain, coord_sidechain: elements and coordinates of the optimised structures
     """
@@ -266,7 +258,7 @@ def get_opt_structures(
         shutil.rmtree(whole_folder)
     whole_folder.mkdir(parents=True)
 
-    dihedral_constraints = gen_dihedral_constraints(rotamer_key, angles_json)
+    dihedral_constraints = gen_dihedral_constraints(dunbrack_data)
 
     run_constraint_xtb(
         xyz_file=rotamer_xyz,
