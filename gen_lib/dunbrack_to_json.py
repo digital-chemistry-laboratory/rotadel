@@ -67,11 +67,10 @@ lib_df["letter"] = lib_df["res"].map(amino_acid_codes)
 # Generate rotamer ID
 lib_df["rotamer_id"] = (
     lib_df["letter"]
-    + ":"
+    + "a"
     + lib_df["phi"].astype(str)
-    + ":"
+    + "a"
     + lib_df["psi"].astype(str)
-    + ":"
     + "r"
     + lib_df[["r1", "r2", "r3", "r4"]].astype(str).agg("".join, axis=1)
 )
