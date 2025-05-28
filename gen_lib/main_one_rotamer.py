@@ -80,6 +80,7 @@ def main(
     try:
         rotamer = Rotamer(rotamer_id, dunbrack_data)
 
+        already_calculated = False
         if output_json:
             with lock(output_json):
                 already_calculated = rotamer.load_existing_sidechain(output_json)
