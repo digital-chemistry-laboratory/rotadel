@@ -5,10 +5,13 @@ import shutil
 from morfeus import read_xyz
 from morfeus.typing import Array1DStr, Array2DFloat
 from typing import Any
+from PeptideBuilder import Geometry
+import PeptideBuilder
+from Bio.PDB import PDBIO
+from openmm.app import PDBFile, Modeller
+from openbabel import pybel
 
 from .utils import get_atom_count
-
-# from .data import CHARGES_AA
 
 
 def gen_dihedral_constraints(
@@ -146,7 +149,7 @@ def run_constraint_xtb(
             - A float specifying the desired dihedral angle in degrees
         fc: force constant for constraints (only when `type` is "dihedral")
         charge: charge of the molecule
-        solvent: implicit solvent for the optimisation (default: ether)
+        solvent: implicit solvent for the optimisation
     Returns:
         None, runs xTB optimisation
     """
@@ -176,11 +179,14 @@ def run_constraint_xtb(
         )
 
 
-def replace_backbone(input_file: PathLike | str, output_file: PathLike | str) -> None:
+def replace_backbone(
+    input_file: PathLike | str, output_file: PathLike | str, is_pro: bool = False
+) -> None:
     """Replace the backbone of the rotamer by a H.
     Args:
         input_file: path to the input xyz file
         output_file: path to the output xyz file
+        is_pro: whether the rotamer is a proline
     Returns:
         None, writes the modified structure to the output file
     """
@@ -196,38 +202,164 @@ def replace_backbone(input_file: PathLike | str, output_file: PathLike | str) ->
     # Replace the comment line
     lines[1] = "backbone replaced by H\n"
 
-    # Delete the N backbone atom
-    lines.pop(2)
+    if is_pro:
+        # Replace backbone carboxyl C with H
+        atom_line = lines[7].split()
+        atom_line[0] = "H"
+        lines[7] = " ".join(atom_line) + "\n"
 
-    # Replace C alpha with H
-    atom_line = lines[2].split()
-    atom_line[0] = "H"
-    lines[2] = " ".join(atom_line) + "\n"
+        # Delete backbone carboxyl Os
+        lines.pop(8)
+        lines.pop(-1)
 
-    # Delete C and O backbone
-    lines.pop(3)
-    lines.pop(3)
+        # Update the atom count in the first line
+        new_atom_count = int(lines[0].strip()) - 2
+        lines[0] = f"{new_atom_count}\n"
 
-    # Find the last O atom, delete it and the following four H atoms
-    last_o_index = len(lines) - 1
-    while last_o_index >= 2:
-        if lines[last_o_index].startswith("O"):
-            break
-        last_o_index -= 1
-    for _ in range(5):
-        lines.pop(last_o_index)
+    else:
+        # Delete backbone N and the 3 bonded Hs
+        lines.pop(2)
+        lines.pop(2)
+        lines.pop(2)
+        lines.pop(2)
 
-    # Update the atom count in the first line
-    new_atom_count = int(lines[0].strip()) - 8
-    lines[0] = f"{new_atom_count}\n"
+        # Replace C alpha with H
+        atom_line = lines[2].split()
+        atom_line[0] = "H"
+        lines[2] = " ".join(atom_line) + "\n"
+
+        # Delete backbone H alpha and COO
+        lines.pop(3)
+        lines.pop(3)
+        lines.pop(3)
+        lines.pop(-1)
+
+        # Update the atom count in the first line
+        new_atom_count = int(lines[0].strip()) - 8
+        lines[0] = f"{new_atom_count}\n"
 
     # Write the modified structure to the output file
     with open(output_file, "w") as output_file:
         output_file.writelines(lines)
 
 
+def init_rotamer_xyz(rotamer_id, dunbrack_data, xyz_output: PathLike | str) -> None:
+    """Build initial rotamer geometry from Dunbrack dihedral angles.
+    Args:
+        rotamer_id: ID of the rotamer with species information
+        dunbrack_data: data with angles extracted from the Dunbrack library
+        xyz_output: path to XYZ file to create
+    Returns:
+        None, writes the non-optimised rotamer geometry to the XYZ file
+    """
+    letter = dunbrack_data["letter"]
+
+    # Build initial geometry from Dunbrack dihedral angles with PeptideBuilder
+    # Results in a PDB file without hydrogens
+    geo = Geometry.geometry(letter)
+    geo.phi = dunbrack_data["phi"]
+    geo.psi_im1 = dunbrack_data["psi"]
+    if letter == "R":
+        geo.N_CA_CB_CG_diangle = dunbrack_data["chi1"]
+        geo.CA_CB_CG_CD_diangle = dunbrack_data["chi2"]
+        geo.CB_CG_CD_NE_diangle = dunbrack_data["chi3"]
+        geo.CG_CD_NE_CZ_diangle = dunbrack_data["chi4"]
+    elif letter == "I":
+        geo.N_CA_CB_CG1_diangle = dunbrack_data["chi1"]
+        geo.CA_CB_CG1_CD1_diangle = dunbrack_data["chi2"]
+    elif letter == "L":
+        geo.N_CA_CB_CG_diangle = dunbrack_data["chi1"]
+        geo.CA_CB_CG_CD1_diangle = dunbrack_data["chi2"]
+    elif letter == "P":
+        geo.N_CA_CB_CG_diangle = dunbrack_data["chi1"]
+        geo.CA_CB_CG_CD_diangle = dunbrack_data["chi2"]
+    elif letter == "T":
+        geo.N_CA_CB_OG1_diangle = dunbrack_data["chi1"]
+    elif letter == "V":
+        geo.N_CA_CB_CG1_diangle = dunbrack_data["chi1"]
+    else:
+        aa_1_chi = ["C", "S", "T", "V"]
+        aa_2_chi = ["N", "D", "H", "I", "L", "F", "P", "W", "Y"]
+        aa_3_chi = ["Q", "E", "M"]
+        aa_4_chi = ["R", "K"]
+        if letter in aa_1_chi:
+            geo.inputRotamers([dunbrack_data["chi1"]])
+        elif letter in aa_2_chi:
+            geo.inputRotamers([dunbrack_data["chi1"], dunbrack_data["chi2"]])
+        elif letter in aa_3_chi:
+            geo.inputRotamers(
+                [dunbrack_data["chi1"], dunbrack_data["chi2"], dunbrack_data["chi3"]]
+            )
+        elif letter in aa_4_chi:
+            geo.inputRotamers(
+                [
+                    dunbrack_data["chi1"],
+                    dunbrack_data["chi2"],
+                    dunbrack_data["chi3"],
+                    dunbrack_data["chi4"],
+                ]
+            )
+        else:
+            raise ValueError(f"Unknown amino acid letter: {letter}")
+    structure = PeptideBuilder.initialize_res(geo)
+    PeptideBuilder.add_terminal_OXT(structure)
+    outfile = PDBIO()
+    outfile.set_structure(structure)
+    pdb_file = Path(xyz_output).with_suffix(".pdb")
+    outfile.save(str(pdb_file))
+
+    # Add hydrogens according to species (charge and tautomer) with OpenMM
+    pdb_wo_Hs = PDBFile(str(pdb_file))
+    modeller = Modeller(pdb_wo_Hs.topology, pdb_wo_Hs.positions)
+    charge = rotamer_id.split("c")[-1]
+    if letter == "H":
+        tautomer = charge.split("t")[-1]
+        charge = charge.split("t")[0]
+        if charge == "0" and tautomer == "D":
+            species = "HID"
+        elif charge == "0" and tautomer == "E":
+            species = "HIE"
+        elif charge == "+1":
+            species = "HIP"
+        elif charge == "-1":
+            species = "HIN"
+        else:
+            raise ValueError(
+                f"Unknown charge/tautomer for histidine: {charge}, {tautomer}"
+            )
+    elif letter == "D" and charge == "0":
+        species = "ASH"
+    elif letter == "D" and charge == "-1":
+        species = "ASP"
+    elif letter == "E" and charge == "0":
+        species = "GLH"
+    elif letter == "E" and charge == "-1":
+        species = "GLU"
+    elif letter == "C" and charge == "0":
+        species = "CYS"
+    elif letter == "C" and charge == "-1":
+        species = "CYX"
+    elif letter == "K" and charge == "+1":
+        species = "LYS"
+    elif letter == "K" and charge == "0":
+        species = "LYN"
+    else:
+        species = None
+    modeller.addHydrogens(variants=[species])
+    PDBFile.writeFile(modeller.topology, modeller.positions, file=str(pdb_file))
+
+    # Convert PDB to XYZ file with Open Babel
+    pybel.ob.obErrorLog.SetOutputLevel(
+        0
+    )  # suppress the "Failed to kekulize aromatic bonds" warning
+    structure = next(pybel.readfile("pdb", str(pdb_file)))
+    structure.write("xyz", str(xyz_output), overwrite=True)
+    pdb_file.unlink()
+
+
 def get_opt_structures(
     dunbrack_data: dict[str, Any],
+    charge: int,
     run_folder: PathLike | str,
     rotamer_xyz: PathLike | str,
 ) -> tuple[
@@ -239,6 +371,7 @@ def get_opt_structures(
     """Get the optimised geometries of side chain (with the backbone being replaced by an H) and rotamer
     Args:
         dunbrack_data: data with angles extracted from the Dunbrack library
+        charge: charge of the rotamer
         run_folder: path of folder in which to perform the full optimisation process
         rotamer_xyz: xyz file of the whole rotamer to optimise
     Returns:
@@ -248,8 +381,6 @@ def get_opt_structures(
     run_folder = Path(run_folder)
     if not run_folder.exists():
         run_folder.mkdir(parents=True)
-
-    # charge = CHARGES_AA[rotamer_key[0]] # TODO: deal with a.a. generated by PeptideBuilder which should be charged
 
     # Optimise the whole rotamer with constrained dihedral angles
     whole_folder = Path(run_folder) / "whole_rotamer"
@@ -265,6 +396,7 @@ def get_opt_structures(
         path_run=whole_folder,
         type_constraint="dihedral",
         dihedral_constraints=dihedral_constraints,
+        charge=charge,
     )
 
     # Replace backbone by H in optimised rotamer
@@ -274,7 +406,8 @@ def get_opt_structures(
         shutil.rmtree(sidechain_folder)
     sidechain_folder.mkdir(parents=True)
     sidechain_start_xyz = sidechain_folder / "sidechain-H_start.xyz"
-    replace_backbone(whole_folder / "xtbopt.xyz", sidechain_start_xyz)
+    is_pro = dunbrack_data["res"] == "PRO"
+    replace_backbone(whole_folder / "xtbopt.xyz", sidechain_start_xyz, is_pro=is_pro)
 
     # Optimise the H in the sidechain-H structure with fixed sidechain atoms
     last_atom = get_atom_count(sidechain_start_xyz)
@@ -285,6 +418,7 @@ def get_opt_structures(
         path_run=sidechain_folder,
         type_constraint="fix",
         fixed_atoms=fixed_atoms,
+        charge=charge,
     )
 
     # Save the optimised sidechain-H and whole rotamer in dictionary
