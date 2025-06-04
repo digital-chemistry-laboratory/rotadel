@@ -1,17 +1,27 @@
 from typing import Any
-from morfeus.typing import Array1DStr, Array2DFloat
 from os import PathLike
 from pathlib import Path
 import json
 import numpy as np
 
+from gen_lib.optimisation import init_rotamer_xyz, get_opt_structures
+from gen_lib.descriptors import calc_descriptors
+
 
 class Rotamer:
     """Storing and manipulating data for a rotamer"""
 
-    def __init__(self, key: str, dunbrack_data: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self,
+        key: str,
+        dunbrack_data: dict[str, Any] | None = None,
+        charge: int | None = None,
+        run_path: str | PathLike | None = None,
+    ) -> None:
         self.key = key
         self.dunbrack_data = dunbrack_data
+        self.charge = charge
+        self.run_path = run_path if run_path is not None else Path.cwd()
         self.rotamer_elements = None
         self.rotamer_coordinates = None
         self.sidechainH_elements = None
@@ -51,18 +61,35 @@ class Rotamer:
                     return True
         return False
 
-    def set_opt_geometries(
-        self,
-        rotamer_elements: Array1DStr,
-        rotamer_coordinates: Array2DFloat,
-        sidechainH_elements: Array1DStr,
-        sidechainH_coordinates: Array2DFloat,
-    ) -> None:
-        """Set the elements and coordinates of the optimised rotamer and sidechain-H geometries."""
-        self.rotamer_elements = rotamer_elements
-        self.rotamer_coordinates = rotamer_coordinates
-        self.sidechainH_elements = sidechainH_elements
-        self.sidechainH_coordinates = sidechainH_coordinates
+    def opt_geometries(self) -> None:
+        """Optimise the rotamer and sidechain-H geometries."""
+        starting_rotamer_xyz = self.run_path / "rotamer_start.xyz"
+        init_rotamer_xyz(
+            rotamer_id=self.key,
+            dunbrack_data=self.dunbrack_data,
+            xyz_output=starting_rotamer_xyz,
+        )
+        el_whole, coord_whole, el_sidechain, coord_sidechain = get_opt_structures(
+            dunbrack_data=self.dunbrack_data,
+            charge=self.charge,
+            run_folder=self.run_path,
+            rotamer_xyz=starting_rotamer_xyz,
+        )
+        self.rotamer_elements = el_whole
+        self.rotamer_coordinates = coord_whole
+        self.sidechainH_elements = el_sidechain
+        self.sidechainH_coordinates = coord_sidechain
+
+    def calc_descriptors(self) -> None:
+        """Calculate the descriptors on the sidechain-H."""
+        if self.sidechainH_elements is None or self.sidechainH_coordinates is None:
+            raise ValueError(
+                "The geometry must first be optimsed before calculating descriptors."
+            )
+        descriptors = calc_descriptors(
+            self.sidechainH_elements, self.sidechainH_coordinates, charge=self.charge
+        )
+        self.descriptors = descriptors
 
     def to_dict(self) -> dict[str, Any]:
         """Return a json-compatible dictionary with the rotamer data."""

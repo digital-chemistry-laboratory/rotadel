@@ -29,8 +29,7 @@ paste -d '/' <(perl -pe 's/(\d+)\(x(\d+)\)/substr("$1,"x$2,0,-1)/ge' <<<$SLURM_T
              <(scontrol show hostnames) > ./node_list_${SLURM_JOB_ID}
 
 # Variables for the job
-input_file="data/rotamer_names.txt"
-zip_file="data/xyz_folder.zip"
+input_file="data/keys_species.csv"
 angles_json="data/angles_Dunbrack.json"
 output_json="data/rotamer_descriptors.json"
 # Prevent output file already existing from a previous run
@@ -48,7 +47,7 @@ env_parallel \
 --joblog parallel.log \
 --wd $PWD \
 --jobs ${SLURM_NTASKS} \
-"python main_one_rotamer.py {} ${angles_json} ${zip_file} -o ${output_json}"
+"python main_one_rotamer.py {} ${angles_json} -o ${output_json}"
 #--resume-failed \
 
 # Calculate run times
