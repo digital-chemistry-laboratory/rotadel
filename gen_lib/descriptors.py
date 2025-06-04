@@ -43,13 +43,17 @@ def reindex_sidechain(morfeus_dict: dict[int, np.float64]) -> dict[int, np.float
 
 
 def calc_descriptors(
-    sidechain_el: Array1DStr, sidechain_coords: Array2DFloat, charge: int = 0
+    sidechain_el: Array1DStr,
+    sidechain_coords: Array2DFloat,
+    charge: int = 0,
+    solvent: str = "ether",
 ) -> dict[str, Any]:
     """Calculate stereo-electronic descriptors on optimised rotamer and sidechain.
     Args:
         sidechain_el: elements symbols of the sidechain-H geometry
         sidechain_coords: coordinates of the optimised sidechain-H geometry [Å]
         charge: charge of the sidechain-H geometry
+        solvent: implicit solvent for the optimisation
     Returns:
         Dictionary of the calculated descriptors
     """
@@ -95,7 +99,7 @@ def calc_descriptors(
     descriptors["p_int"] = dispersion.p_int
 
     # xTB descriptors
-    xtb = XTB(sidechain_el, sidechain_coords, charge=charge)
+    xtb = XTB(sidechain_el, sidechain_coords, charge=charge, solvent=solvent)
     descriptors["homo"] = xtb.get_homo()
     descriptors["lumo"] = xtb.get_lumo()
     ea = xtb.get_ea()
