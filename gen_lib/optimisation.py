@@ -243,12 +243,18 @@ def replace_backbone(
         output_file.writelines(lines)
 
 
-def init_rotamer_xyz(rotamer_id, dunbrack_data, xyz_output: PathLike | str) -> None:
+def start_rotamer_xyz(
+    dunbrack_data: dict[str, Any],
+    xyz_output: PathLike | str,
+    charge: int,
+    tautomer: str = None,
+) -> None:
     """Build initial rotamer geometry from Dunbrack dihedral angles.
     Args:
-        rotamer_id: ID of the rotamer with species information
         dunbrack_data: data with angles extracted from the Dunbrack library
         xyz_output: path to XYZ file to create
+        charge: charge of the rotamer
+        tautomer: tautomer of the rotamer (only for histidine, either 'D' or 'E')
     Returns:
         None, writes the non-optimised rotamer geometry to the XYZ file
     """
@@ -311,37 +317,34 @@ def init_rotamer_xyz(rotamer_id, dunbrack_data, xyz_output: PathLike | str) -> N
     # Add hydrogens according to species (charge and tautomer) with OpenMM
     pdb_wo_Hs = PDBFile(str(pdb_file))
     modeller = Modeller(pdb_wo_Hs.topology, pdb_wo_Hs.positions)
-    charge = rotamer_id.split("c")[-1]
     if letter == "H":
-        tautomer = charge.split("t")[-1]
-        charge = charge.split("t")[0]
-        if charge == "0" and tautomer == "D":
+        if charge == 0 and tautomer == "D":
             species = "HID"
-        elif charge == "0" and tautomer == "E":
+        elif charge == 0 and tautomer == "E":
             species = "HIE"
-        elif charge == "+1":
+        elif charge == 1:
             species = "HIP"
-        elif charge == "-1":
+        elif charge == -1:
             species = "HIN"
         else:
             raise ValueError(
                 f"Unknown charge/tautomer for histidine: {charge}, {tautomer}"
             )
-    elif letter == "D" and charge == "0":
+    elif letter == "D" and charge == 0:
         species = "ASH"
-    elif letter == "D" and charge == "-1":
+    elif letter == "D" and charge == -1:
         species = "ASP"
-    elif letter == "E" and charge == "0":
+    elif letter == "E" and charge == 0:
         species = "GLH"
-    elif letter == "E" and charge == "-1":
+    elif letter == "E" and charge == -1:
         species = "GLU"
-    elif letter == "C" and charge == "0":
+    elif letter == "C" and charge == 0:
         species = "CYS"
-    elif letter == "C" and charge == "-1":
+    elif letter == "C" and charge == -1:
         species = "CYX"
-    elif letter == "K" and charge == "+1":
+    elif letter == "K" and charge == 1:
         species = "LYS"
-    elif letter == "K" and charge == "0":
+    elif letter == "K" and charge == 0:
         species = "LYN"
     else:
         species = None

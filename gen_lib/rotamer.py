@@ -4,7 +4,7 @@ from pathlib import Path
 import json
 import numpy as np
 
-from gen_lib.optimisation import init_rotamer_xyz, get_opt_structures
+from gen_lib.optimisation import start_rotamer_xyz, get_opt_structures
 from gen_lib.descriptors import calc_descriptors
 
 
@@ -16,11 +16,13 @@ class Rotamer:
         key: str,
         dunbrack_data: dict[str, Any] | None = None,
         charge: int | None = None,
+        tautomer: str | None = None,
         run_path: str | PathLike | None = None,
     ) -> None:
         self.key = key
         self.dunbrack_data = dunbrack_data
         self.charge = charge
+        self.tautomer = tautomer
         self.run_path = run_path if run_path is not None else Path.cwd()
         self.rotamer_elements = None
         self.rotamer_coordinates = None
@@ -64,10 +66,11 @@ class Rotamer:
     def opt_geometries(self) -> None:
         """Optimise the rotamer and sidechain-H geometries."""
         starting_rotamer_xyz = self.run_path / "rotamer_start.xyz"
-        init_rotamer_xyz(
-            rotamer_id=self.key,
+        start_rotamer_xyz(
             dunbrack_data=self.dunbrack_data,
             xyz_output=starting_rotamer_xyz,
+            charge=self.charge,
+            tautomer=self.tautomer,
         )
         el_whole, coord_whole, el_sidechain, coord_sidechain = get_opt_structures(
             dunbrack_data=self.dunbrack_data,

@@ -65,11 +65,13 @@ def main(
     with open(angles_json, "r") as f:
         dunbrack_all_rotamers = json.load(f)
     rotamer_id_dunbrack = rotamer_id.split("c")[0]
-    species_info = rotamer_id.split("c")[1]
+    species_info = rotamer_id.split("c")[-1]
     if "t" in species_info:
         charge = int(species_info.split("t")[0])
+        tautomer = species_info.split("t")[-1]
     else:
         charge = int(species_info)
+        tautomer = None
     dunbrack_data = dunbrack_all_rotamers[rotamer_id_dunbrack]
 
     try:
@@ -78,7 +80,7 @@ def main(
             run_folder = Path(temp_dir) if run_path is None else Path(run_path)
 
             rotamer = Rotamer(
-                rotamer_id, dunbrack_data, charge, run_path=run_folder
+                rotamer_id, dunbrack_data, charge, tautomer, run_path=run_folder
             )
 
             already_calculated = False
