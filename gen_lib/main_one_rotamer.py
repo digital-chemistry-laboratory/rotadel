@@ -73,35 +73,35 @@ def main(
     dunbrack_data = dunbrack_all_rotamers[rotamer_id_dunbrack]
 
     try:
-        rotamer = Rotamer(rotamer_id, dunbrack_data, charge)
+        temp_dir_context = TemporaryDirectory() if run_path is None else nullcontext()
+        with temp_dir_context as temp_dir:
+            run_folder = Path(temp_dir) if run_path is None else Path(run_path)
 
-        already_calculated = False
-        if output_json:
-            with lock(output_json):
-                already_calculated = rotamer.load_existing_sidechain(output_json)
-            print(f"{rotamer_id} already calculated: {already_calculated}")
-
-        if not already_calculated:
-            temp_dir_context = (
-                TemporaryDirectory() if run_path is None else nullcontext()
+            rotamer = Rotamer(
+                rotamer_id, dunbrack_data, charge, run_path=run_folder
             )
-            with temp_dir_context as temp_dir:
-                run_folder = Path(temp_dir) if run_path is None else Path(run_path)
+
+            already_calculated = False
+            if output_json:
+                with lock(output_json):
+                    already_calculated = rotamer.load_existing_sidechain(output_json)
+
+            if not already_calculated:
                 if not run_folder.exists():
                     run_folder.mkdir(parents=True)
 
                 # Optimise both whole rotamer and sidechain-H
                 rotamer.opt_geometries()
 
-            # Calculate descriptors on sidechain-H
-            rotamer.calc_descriptors()
+                # Calculate descriptors on sidechain-H
+                rotamer.calc_descriptors()
 
-        # Save as json
-        if output_json:
-            with lock(output_json):
-                rotamer.to_json(output_json)
-        else:
-            sys.stdout.write(json.dumps(rotamer.to_dict(), indent=4))
+                # Save as json
+                if output_json:
+                    with lock(output_json):
+                        rotamer.to_json(output_json)
+                else:
+                    sys.stdout.write(json.dumps(rotamer.to_dict(), indent=4))
 
     except Exception:
         # raise # Uncomment to see the error in the terminal as usual
