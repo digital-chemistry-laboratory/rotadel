@@ -19,16 +19,16 @@ class Rotamer:
         tautomer: str | None = None,
         run_path: str | PathLike | None = None,
     ) -> None:
-        self.key = key
-        self.dunbrack_data = dunbrack_data
-        self.charge = charge
-        self.tautomer = tautomer
-        self.run_path = run_path if run_path is not None else Path.cwd()
-        self.rotamer_elements = None
-        self.rotamer_coordinates = None
-        self.sidechainH_elements = None
-        self.sidechainH_coordinates = None
-        self.descriptors = {}
+        self._key = key
+        self._dunbrack_data = dunbrack_data
+        self._charge = charge
+        self._tautomer = tautomer
+        self._run_path = run_path if run_path is not None else Path.cwd()
+        self._rotamer_elements = None
+        self._rotamer_coordinates = None
+        self._sidechainH_elements = None
+        self._sidechainH_coordinates = None
+        self._descriptors = {}
 
     def load_existing_sidechain(self, json_file: str | PathLike) -> bool:
         """Check if the sidechain already exists in the JSON file and load calculated data if applicable.
@@ -43,75 +43,75 @@ class Rotamer:
                 content = json.load(f)
             for _, existing_rotamer in content.items():
                 if all(
-                    self.dunbrack_data[field] == existing_rotamer[field]
+                    self._dunbrack_data[field] == existing_rotamer[field]
                     for field in ["res", "chi1", "chi2", "chi3", "chi4"]
                 ):
                     for name, entry in existing_rotamer.items():
-                        if name not in self.dunbrack_data:
+                        if name not in self._dunbrack_data:
                             if name == "rotamer":
-                                self.rotamer_elements = np.array(entry["elements"])
-                                self.rotamer_coordinates = np.array(
+                                self._rotamer_elements = np.array(entry["elements"])
+                                self._rotamer_coordinates = np.array(
                                     entry["coordinates"]
                                 )
                             elif name == "sidechain-H":
-                                self.sidechainH_elements = np.array(entry["elements"])
-                                self.sidechainH_coordinates = np.array(
+                                self._sidechainH_elements = np.array(entry["elements"])
+                                self._sidechainH_coordinates = np.array(
                                     entry["coordinates"]
                                 )
                             else:
-                                self.descriptors[name] = entry
+                                self._descriptors[name] = entry
                     return True
         return False
 
     def opt_geometries(self) -> None:
         """Optimise the rotamer and sidechain-H geometries."""
-        starting_rotamer_xyz = self.run_path / "rotamer_start.xyz"
+        starting_rotamer_xyz = self._run_path / "rotamer_start.xyz"
         start_rotamer_xyz(
-            dunbrack_data=self.dunbrack_data,
+            dunbrack_data=self._dunbrack_data,
             xyz_output=starting_rotamer_xyz,
-            charge=self.charge,
-            tautomer=self.tautomer,
+            charge=self._charge,
+            tautomer=self._tautomer,
         )
         el_whole, coord_whole, el_sidechain, coord_sidechain = get_opt_structures(
-            dunbrack_data=self.dunbrack_data,
-            charge=self.charge,
-            run_folder=self.run_path,
+            dunbrack_data=self._dunbrack_data,
+            charge=self._charge,
+            run_folder=self._run_path,
             rotamer_xyz=starting_rotamer_xyz,
         )
-        self.rotamer_elements = el_whole
-        self.rotamer_coordinates = coord_whole
-        self.sidechainH_elements = el_sidechain
-        self.sidechainH_coordinates = coord_sidechain
+        self._rotamer_elements = el_whole
+        self._rotamer_coordinates = coord_whole
+        self._sidechainH_elements = el_sidechain
+        self._sidechainH_coordinates = coord_sidechain
 
     def calc_descriptors(self) -> None:
         """Calculate the descriptors on the sidechain-H."""
-        if self.sidechainH_elements is None or self.sidechainH_coordinates is None:
+        if self._sidechainH_elements is None or self._sidechainH_coordinates is None:
             raise ValueError(
                 "The geometry must first be optimsed before calculating descriptors."
             )
         descriptors = calc_descriptors(
-            self.sidechainH_elements, self.sidechainH_coordinates, charge=self.charge
+            self._sidechainH_elements, self._sidechainH_coordinates, charge=self._charge
         )
-        self.descriptors = descriptors
+        self._descriptors = descriptors
 
     def to_dict(self) -> dict[str, Any]:
         """Return a json-compatible dictionary with the rotamer data."""
         dictionary = {
-            self.key: {
-                **self.dunbrack_data,
+            self._key: {
+                **self._dunbrack_data,
                 "rotamer": {
-                    "elements": self.rotamer_elements.tolist(),
-                    "coordinates": self.rotamer_coordinates.tolist(),
+                    "elements": self._rotamer_elements.tolist(),
+                    "coordinates": self._rotamer_coordinates.tolist(),
                 },
                 "sidechain-H": {
-                    "elements": self.sidechainH_elements.tolist(),
-                    "coordinates": self.sidechainH_coordinates.tolist(),
+                    "elements": self._sidechainH_elements.tolist(),
+                    "coordinates": self._sidechainH_coordinates.tolist(),
                 },
             },
         }
-        if self.descriptors is not None:
-            for descriptor_name, descriptor_value in self.descriptors.items():
-                dictionary[self.key][descriptor_name] = descriptor_value
+        if self._descriptors is not None:
+            for descriptor_name, descriptor_value in self._descriptors.items():
+                dictionary[self._key][descriptor_name] = descriptor_value
         return dictionary
 
     def to_json(self, json_file: str | PathLike) -> None:
