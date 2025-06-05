@@ -10,8 +10,10 @@ import PeptideBuilder
 from Bio.PDB import PDBIO
 from openmm.app import PDBFile, Modeller
 from openbabel import pybel
+import os
 
 from .utils import get_atom_count
+from . import config
 
 
 def gen_dihedral_constraints(
@@ -186,11 +188,17 @@ def run_constraint_xtb(
     with open(path_run / "xtb.out", "w") as stdout, open(
         f"{path_run}/xtb.err", "w"
     ) as stderr:
+        env = dict(os.environ)
+        env["OMP_NUM_THREADS"] = f"{config.OMP_NUM_THREADS},1"
+        env["MKL_NUM_THREADS"] = f"{config.OMP_NUM_THREADS}"
+        env["OMP_STACKSIZE"] = config.OMP_STACKSIZE
+        env["OMP_MAX_ACTIVE_LEVELS"] = str(config.OMP_MAX_ACTIVE_LEVELS)
         subprocess.run(
             command.split(),
             cwd=path_run,
             stdout=stdout,
             stderr=stderr,
+            env=env,
         )
 
 
