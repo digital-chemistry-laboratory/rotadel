@@ -14,8 +14,8 @@ class Rotamer:
     def __init__(
         self,
         key: str,
-        dunbrack_data: dict[str, Any] | None = None,
-        charge: int | None = None,
+        dunbrack_data: dict[str, Any],
+        charge: int,
         tautomer: str | None = None,
         run_path: str | PathLike | None = None,
     ) -> None:
@@ -42,10 +42,13 @@ class Rotamer:
             with open(json_file, "r") as f:
                 content = json.load(f)
             for _, existing_rotamer in content.items():
-                if all(
+                same_chi_angles: bool = all(
                     self._dunbrack_data[field] == existing_rotamer[field]
                     for field in ["res", "chi1", "chi2", "chi3", "chi4"]
-                ):
+                )
+                same_charge: bool = self._charge == existing_rotamer["charge"]
+                same_tautomer: bool = self._tautomer == existing_rotamer["tautomer"]
+                if same_chi_angles and same_charge and same_tautomer:
                     for name, entry in existing_rotamer.items():
                         if name not in self._dunbrack_data:
                             if name == "rotamer":
@@ -99,6 +102,8 @@ class Rotamer:
         dictionary = {
             self._key: {
                 **self._dunbrack_data,
+                "charge": self._charge,
+                "tautomer": self._tautomer,
                 "rotamer": {
                     "elements": self._rotamer_elements.tolist(),
                     "coordinates": self._rotamer_coordinates.tolist(),
