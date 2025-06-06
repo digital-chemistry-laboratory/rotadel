@@ -107,12 +107,10 @@ def calc_descriptors(
     descriptors["electron_affinity"] = ea
     descriptors["ionization_potential"] = ip
     descriptors["electronegativity"] = (ip + ea) / 2
-    descriptors["hardness"] = ip - ea
-    descriptors["global_nucleophilicity"] = xtb.get_global_descriptor(
-        "nucleophilicity", corrected=True
-    )
+    descriptors["hardness"] = xtb.get_hardness()
+    descriptors["global_nucleophilicity"] = xtb.get_global_descriptor("nucleophilicity")
     descriptors["global_electrophilicity"] = xtb.get_global_descriptor(
-        "electrophilicity", corrected=True
+        "electrophilicity"
     )
     descriptors["local_nucleophilicity"] = reindex_sidechain(
         xtb.get_fukui("local_nucleophilicity")
@@ -122,8 +120,6 @@ def calc_descriptors(
     )
     descriptors["fukui_minus"] = reindex_sidechain(xtb.get_fukui("nucleophilicity"))
     descriptors["fukui_plus"] = reindex_sidechain(xtb.get_fukui("electrophilicity"))
-
-    # Partial charges
     descriptors["partial_charges"] = reindex_sidechain(xtb.get_charges())
 
     # Bond orders
