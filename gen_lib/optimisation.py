@@ -81,7 +81,6 @@ def gen_dihedral_constraints(
 
 def write_xcontrol(
     file: PathLike | str,
-    type: str,
     fixed_atoms: list[int] = None,
     dihedral_constraints: list[tuple[list[int], float]] = None,
     fc: float = 0.5,
@@ -89,30 +88,27 @@ def write_xcontrol(
     """Write input file for xTB optimisation with constraining or fixing
     Args:
         file: path to the input file to create
-        type: "dihedral" for constrained dihedral angles or "fix" for fixed atoms
-        fixed_atoms: list of atom indices to fix in space (only when `type` is "fix")
-        dihedral_constraints: list of tuples for dihedral constraints (only when `type` is "dihedral").
+        fixed_atoms: list of atom indices to fix in space
+        dihedral_constraints: list of tuples for dihedral constraints
             Each tuple should contain:
             - A list of exactly four atom indices (1-based) involved in the dihedral angle
             - A float specifying the desired dihedral angle in degrees
-        fc: force constant for constraints (only when `type` is "dihedral")
+        fc: force constant for constraints (only used if `dihedral_constraints` is provided)
     Returns:
         None, write input file
     """
+    input = ""
 
-    # Block for dihedral constraint
-    if type == "dihedral":
-        if dihedral_constraints is None or not all(
+    # Input block for dihedral constraints
+    if dihedral_constraints:
+        if not all(
             isinstance(item, tuple) and len(item) == 2 for item in dihedral_constraints
         ):
             raise ValueError(
-                "For 'dihedral', provide a list of tuples containing the angle and a list of atom indices."
+                "For dihedral constraints, provide a list of tuples containing the angle and a list of atom indices."
             )
-        if fixed_atoms is not None:
-            raise ValueError("For 'dihedral', do not provide 'fixed_atoms'.")
 
-        # Build input for dihedral constraints
-        input = "$constrain\n"
+        input += "$constrain\n"
         input += f"   force constant={fc}\n"
         for atoms, angle in dihedral_constraints:
             if len(atoms) != 4:
@@ -122,22 +118,15 @@ def write_xcontrol(
             input += f"   dihedral: {', '.join(map(str, atoms))}, {angle}\n"
         input += "$end\n"
 
-    # Block for fixed atoms
-    elif type == "fix":
-        if fixed_atoms is None or not all(
-            isinstance(atom, int) for atom in fixed_atoms
-        ):
-            raise ValueError("For 'fix', provide a list of fixed atom indices.")
-        if dihedral_constraints is not None:
-            raise ValueError("For 'fix', do not provide 'dihedral_constraints'.")
+    # Input block for fixed atoms
+    if fixed_atoms:
+        if not all(isinstance(atom, int) for atom in fixed_atoms):
+            raise ValueError("For fixing atoms, provide a list of fixed atom indices.")
 
-        # Build input for fix constraints
-        input = "$fix\n"
+        input += "$fix\n"
         input += f"   atoms: {','.join(map(str, fixed_atoms))}\n"
         input += "$end\n"
 
-    else:
-        raise ValueError("type must be either 'dihedral' or 'fix'.")
 
     # Write the input to the specified file
     with open(file, "w") as f:
@@ -147,7 +136,6 @@ def write_xcontrol(
 def run_constraint_xtb(
     xyz_file: PathLike | str,
     path_run: PathLike | str,
-    type_constraint: str,
     fixed_atoms: list[int] = None,
     dihedral_constraints: list[tuple[list[int], float]] = None,
     fc: float = 0.5,
@@ -158,13 +146,12 @@ def run_constraint_xtb(
     Args:
         xyz_file: xyz file for the starting structure
         path_run: folder to run the xTB optimisation (created if does not exist)
-        type: "dihedral" for constrained dihedral angles or "fix" for fixed atoms
-        fixed_atoms: list of atom indices to fix in space (only when `type` is "fix")
-        dihedral_constraints: list of tuples for dihedral constraints (only when `type` is "dihedral").
+        fixed_atoms: list of atom indices to fix in space
+        dihedral_constraints: list of tuples for dihedral constraints
             Each tuple should contain:
             - A list of exactly four atom indices (1-based) involved in the dihedral angle
             - A float specifying the desired dihedral angle in degrees
-        fc: force constant for constraints (only when `type` is "dihedral")
+        fc: force constant for constraints (only used if `dihedral_constraints` is provided)
         charge: charge of the molecule
         solvent: implicit solvent for the optimisation
     Returns:
@@ -174,7 +161,6 @@ def run_constraint_xtb(
     # Create xcontrol file
     write_xcontrol(
         path_run / "xcontrol",
-        type=type_constraint,
         fixed_atoms=fixed_atoms,
         dihedral_constraints=dihedral_constraints,
         fc=fc,
@@ -420,7 +406,6 @@ def get_opt_structures(
     run_constraint_xtb(
         xyz_file=rotamer_xyz,
         path_run=whole_folder,
-        type_constraint="dihedral",
         dihedral_constraints=dihedral_constraints,
         charge=charge,
     )
@@ -442,7 +427,6 @@ def get_opt_structures(
     run_constraint_xtb(
         xyz_file=sidechain_start_xyz,
         path_run=sidechain_folder,
-        type_constraint="fix",
         fixed_atoms=fixed_atoms,
         charge=charge,
     )
