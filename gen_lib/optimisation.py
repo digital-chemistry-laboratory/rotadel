@@ -150,7 +150,7 @@ def run_constraint_xtb(
     fc: float = 0.5,
     opt_engine: str | None = None,
     charge: int = 0,
-    solvent: str = "ether",
+    solvent: str = "water",
 ) -> None:
     """Run constrained optimisation in implicit solvent with GFN2-xTB
     Args:
