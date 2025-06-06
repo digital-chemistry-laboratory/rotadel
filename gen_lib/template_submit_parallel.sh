@@ -15,6 +15,9 @@ start_time=$(date +%s)
 
 # Load the required modules and environment
 mamba activate aa
+export MY_MODULEPATH_ROOT=/cluster/project/jorner/modules_dcl/
+module use $MY_MODULEPATH_ROOT/Core
+module load xtb/bleed
 
 # Set the required environment variables
 export LANGUAGE=en_US.UTF-8

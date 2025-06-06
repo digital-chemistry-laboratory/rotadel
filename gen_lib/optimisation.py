@@ -442,7 +442,6 @@ def get_opt_structures(
         xyz_file=sidechain_start_xyz,
         path_run=sidechain_folder,
         fixed_atoms=fixed_atoms,
-        opt_engine="inertial",  # Because needs cartesian coordinates
         charge=charge,
     )
 
