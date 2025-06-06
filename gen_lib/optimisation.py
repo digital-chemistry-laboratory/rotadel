@@ -84,6 +84,7 @@ def write_xcontrol(
     fixed_atoms: list[int] = None,
     dihedral_constraints: list[tuple[list[int], float]] = None,
     fc: float = 0.5,
+    opt_engine: str | None = None,
 ) -> None:
     """Write input file for xTB optimisation with constraining or fixing
     Args:
@@ -94,6 +95,9 @@ def write_xcontrol(
             - A list of exactly four atom indices (1-based) involved in the dihedral angle
             - A float specifying the desired dihedral angle in degrees
         fc: force constant for constraints (only used if `dihedral_constraints` is provided)
+        opt_engine: optimisation engine to use
+            - None uses xtb default engine: Approximate Normal Coordinate Rational Function optimizer (ANCopt)
+            - "inertial": Fast Inertial Relaxation Engine (FIRE) (for cartesian coordinates)
     Returns:
         None, write input file
     """
@@ -127,6 +131,11 @@ def write_xcontrol(
         input += f"   atoms: {','.join(map(str, fixed_atoms))}\n"
         input += "$end\n"
 
+    # Input block for optimisation engine
+    if opt_engine:
+        input += "$opt\n"
+        input += f"   engine={opt_engine}\n"
+        input += "$end\n"
 
     # Write the input to the specified file
     with open(file, "w") as f:
@@ -139,6 +148,7 @@ def run_constraint_xtb(
     fixed_atoms: list[int] = None,
     dihedral_constraints: list[tuple[list[int], float]] = None,
     fc: float = 0.5,
+    opt_engine: str | None = None,
     charge: int = 0,
     solvent: str = "ether",
 ) -> None:
@@ -152,6 +162,9 @@ def run_constraint_xtb(
             - A list of exactly four atom indices (1-based) involved in the dihedral angle
             - A float specifying the desired dihedral angle in degrees
         fc: force constant for constraints (only used if `dihedral_constraints` is provided)
+        opt_engine: optimisation engine to use
+            - None uses xtb default engine: Approximate Normal Coordinate Rational Function optimizer (ANCopt)
+            - "inertial": Fast Inertial Relaxation Engine (FIRE) (for cartesian coordinates)
         charge: charge of the molecule
         solvent: implicit solvent for the optimisation
     Returns:
@@ -164,6 +177,7 @@ def run_constraint_xtb(
         fixed_atoms=fixed_atoms,
         dihedral_constraints=dihedral_constraints,
         fc=fc,
+        opt_engine=opt_engine,
     )
 
     # Get absolute path of starting structure
@@ -428,6 +442,7 @@ def get_opt_structures(
         xyz_file=sidechain_start_xyz,
         path_run=sidechain_folder,
         fixed_atoms=fixed_atoms,
+        opt_engine="inertial",  # Because needs cartesian coordinates
         charge=charge,
     )
 
