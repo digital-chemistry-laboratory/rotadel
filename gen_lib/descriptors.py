@@ -46,7 +46,7 @@ def calc_descriptors(
     sidechain_el: Array1DStr,
     sidechain_coords: Array2DFloat,
     charge: int = 0,
-    solvent: str = "water",
+    solvent: str = "ether",
 ) -> dict[str, Any]:
     """Calculate stereo-electronic descriptors on optimised rotamer and sidechain.
     Args:
