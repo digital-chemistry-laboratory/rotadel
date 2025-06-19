@@ -32,14 +32,24 @@ def move_central_atom(
     return coords
 
 
-def reindex_sidechain(morfeus_dict: dict[int, np.float64]) -> dict[int, np.float64]:
+def reindex_sidechain(
+    morfeus_dict: dict[int, np.float64], is_pro: bool = False
+) -> dict[int, np.float64]:
     """Rewrite the dictionary returned by Morfeus to remove the H dummy atom (first entry) and reindex in 0-base.
     Args:
         morfeus_descriptor: dictionary of the atomic descriptor calculated by Morfeus
+        is_pro: whether the a.a. is proline.
+            If true, both first and last atoms are Hs replacing the backbone and will be deleted.
     Returns:
         Dictionary with only the sidechain atoms and 0-indexed
     """
-    return {int(idx) - 1: value for idx, value in morfeus_dict.items() if int(idx) != 1}
+    output_dict = {
+        int(idx) - 1: value for idx, value in morfeus_dict.items() if int(idx) != 1
+    }
+    if is_pro:
+        last_idx = max(output_dict.keys())
+        output_dict.pop(last_idx, None)
+    return output_dict
 
 
 def calc_descriptors(
@@ -47,13 +57,15 @@ def calc_descriptors(
     sidechain_coords: Array2DFloat,
     charge: int = 0,
     solvent: str = "ether",
+    is_pro: bool = False,
 ) -> dict[str, Any]:
-    """Calculate stereo-electronic descriptors on optimised rotamer and sidechain.
+    """Calculate stereo-electronic descriptors on optimised sidechain.
     Args:
         sidechain_el: elements symbols of the sidechain-H geometry
         sidechain_coords: coordinates of the optimised sidechain-H geometry [Å]
         charge: charge of the sidechain-H geometry
         solvent: implicit solvent for the optimisation
+        is_pro: whether the a.a. is proline
     Returns:
         Dictionary of the calculated descriptors
     """
@@ -113,14 +125,18 @@ def calc_descriptors(
         "electrophilicity"
     )
     descriptors["local_nucleophilicity"] = reindex_sidechain(
-        xtb.get_fukui("local_nucleophilicity")
+        xtb.get_fukui("local_nucleophilicity"), is_pro=is_pro
     )
     descriptors["local_electrophilicity"] = reindex_sidechain(
-        xtb.get_fukui("local_electrophilicity")
+        xtb.get_fukui("local_electrophilicity"), is_pro=is_pro
     )
-    descriptors["fukui_minus"] = reindex_sidechain(xtb.get_fukui("nucleophilicity"))
-    descriptors["fukui_plus"] = reindex_sidechain(xtb.get_fukui("electrophilicity"))
-    descriptors["partial_charges"] = reindex_sidechain(xtb.get_charges())
+    descriptors["fukui_minus"] = reindex_sidechain(
+        xtb.get_fukui("nucleophilicity"), is_pro=is_pro
+    )
+    descriptors["fukui_plus"] = reindex_sidechain(
+        xtb.get_fukui("electrophilicity"), is_pro=is_pro
+    )
+    descriptors["partial_charges"] = reindex_sidechain(xtb.get_charges(), is_pro=is_pro)
 
     # Bond orders
     xyz_str = xyz_string(sidechain_el, sidechain_coords)
@@ -131,7 +147,11 @@ def calc_descriptors(
     ]
     bo = {}
     for atom_1, atom_2 in bond_indices:
+        # Skip the dummy H replacing the C alpha
         if atom_1 == 0 or atom_2 == 0:
+            continue
+        # If proline, skip also the last H replacing the backbone N
+        if is_pro and (atom_1 == 10 or atom_2 == 10):
             continue
         bo[f"{atom_1}, {atom_2}"] = xtb.get_bond_order(
             atom_1 + 1, atom_2 + 1

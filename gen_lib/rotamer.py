@@ -92,8 +92,12 @@ class Rotamer:
             raise ValueError(
                 "The geometry must first be optimsed before calculating descriptors."
             )
+        is_pro = self._dunbrack_data["res"] == "PRO"
         descriptors = calc_descriptors(
-            self._sidechainH_elements, self._sidechainH_coordinates, charge=self._charge
+            self._sidechainH_elements,
+            self._sidechainH_coordinates,
+            charge=self._charge,
+            is_pro=is_pro,
         )
         self._descriptors = descriptors
 

@@ -210,6 +210,7 @@ def replace_backbone(
         input_file: path to the input xyz file
         output_file: path to the output xyz file
         is_pro: whether the rotamer is a proline
+            If True, both the backbone N and C alpha are replaced by Hs
     Returns:
         None, writes the modified structure to the output file
     """
@@ -226,18 +227,28 @@ def replace_backbone(
     lines[1] = "backbone replaced by H\n"
 
     if is_pro:
-        # Replace backbone carboxyl C with H
-        atom_line = lines[7].split()
+        # Replace backbone N with H
+        atom_line = lines[2].split()
         atom_line[0] = "H"
-        lines[7] = " ".join(atom_line) + "\n"
+        lines[2] = " ".join(atom_line) + "\n"
 
-        # Delete backbone carboxyl Os
-        lines.pop(8)
+        # Replace C alpha with H
+        atom_line = lines[5].split()
+        atom_line[0] = "H"
+        lines[5] = " ".join(atom_line) + "\n"
+
+        # Delete rest of backbone atoms
+        lines.pop(3)
+        lines.pop(3)
+        lines.pop(4)
+        lines.pop(4)
+        lines.pop(4)
         lines.pop(-1)
 
-        # Update the atom count in the first line
-        new_atom_count = int(lines[0].strip()) - 2
-        lines[0] = f"{new_atom_count}\n"
+        # Move the H replacing N to the end of the file
+        lines.append(lines.pop(2))
+
+        nb_atoms_deleted = 6
 
     else:
         # Delete backbone N and the 3 bonded Hs
@@ -257,9 +268,11 @@ def replace_backbone(
         lines.pop(3)
         lines.pop(-1)
 
-        # Update the atom count in the first line
-        new_atom_count = int(lines[0].strip()) - 8
-        lines[0] = f"{new_atom_count}\n"
+        nb_atoms_deleted = 8
+
+    # Update the atom count in the first line
+    new_atom_count = int(lines[0].strip()) - nb_atoms_deleted
+    lines[0] = f"{new_atom_count}\n"
 
     # Write the modified structure to the output file
     with open(output_file, "w") as output_file:
@@ -436,7 +449,11 @@ def get_opt_structures(
 
     # Optimise the H in the sidechain-H structure with fixed sidechain atoms
     last_atom = get_atom_count(sidechain_start_xyz)
-    fixed_atoms = list(range(2, last_atom + 1))  # atom indices are 1-based
+    if is_pro:
+        # For proline, two Hs were added and need to be optimised (at first and last positions)
+        fixed_atoms = list(range(2, 10))  # atom indices are 1-based
+    else:
+        fixed_atoms = list(range(2, last_atom + 1))  # atom indices are 1-based
 
     run_constraint_xtb(
         xyz_file=sidechain_start_xyz,
