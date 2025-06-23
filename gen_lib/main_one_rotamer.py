@@ -84,7 +84,7 @@ def main(
             )
 
             already_calculated = False
-            if output_json:
+            if output_json and output_json.exists():
                 with lock(output_json):
                     already_calculated = rotamer.load_existing_sidechain(output_json)
 
