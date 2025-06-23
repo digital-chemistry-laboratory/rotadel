@@ -20,7 +20,7 @@ def move_central_atom(
         bonded_index: index of the atom bonded to central atom (0-indexed)
         target_dist: target distance between central and bonded atoms
     Returns:
-        coords: updated coordinates of the molecule
+        updated coordinates of the molecule
     """
     central_coord = np.array(coords[central_index])
     bonded_coord = np.array(coords[bonded_index])
@@ -28,8 +28,9 @@ def move_central_atom(
     direction_vect = (central_coord - bonded_coord) / current_dist
     displacement_vect = direction_vect * (target_dist - current_dist)
     new_central_coord = central_coord + displacement_vect
-    coords[central_index] = new_central_coord
-    return coords
+    new_coords = coords.copy()
+    new_coords[central_index] = new_central_coord
+    return new_coords
 
 
 def reindex_sidechain(
