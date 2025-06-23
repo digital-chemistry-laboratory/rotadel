@@ -118,9 +118,10 @@ class Rotamer:
                 },
             },
         }
-        if self._descriptors is not None:
+        if self._descriptors:
+            dictionary[self._key]["descriptors"] = {}
             for descriptor_name, descriptor_value in self._descriptors.items():
-                dictionary[self._key][descriptor_name] = descriptor_value
+                dictionary[self._key]["descriptors"][descriptor_name] = descriptor_value
         return dictionary
 
     def to_json(self, json_file: str | PathLike) -> None:
