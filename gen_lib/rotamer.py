@@ -44,7 +44,12 @@ class Rotamer:
             for _, existing_rotamer in content.items():
                 same_chi_angles: bool = all(
                     self._dunbrack_data[field] == existing_rotamer[field]
-                    for field in ["res", "chi1", "chi2", "chi3", "chi4"]
+                    for field in [
+                        "res",
+                        "chi2",
+                        "chi3",
+                        "chi4",
+                    ]  # Since backbone is removed, phi, psi, and chi1 do not apply
                 )
                 same_charge: bool = self._charge == existing_rotamer["charge"]
                 same_tautomer: bool = self._tautomer == existing_rotamer["tautomer"]
