@@ -50,19 +50,13 @@ class Rotamer:
                 same_tautomer: bool = self._tautomer == existing_rotamer["tautomer"]
                 if same_chi_angles and same_charge and same_tautomer:
                     for name, entry in existing_rotamer.items():
-                        if name not in self._dunbrack_data:
-                            if name == "rotamer":
-                                self._rotamer_elements = np.array(entry["elements"])
-                                self._rotamer_coordinates = np.array(
-                                    entry["coordinates"]
-                                )
-                            elif name == "sidechain-H":
-                                self._sidechainH_elements = np.array(entry["elements"])
-                                self._sidechainH_coordinates = np.array(
-                                    entry["coordinates"]
-                                )
-                            else:
-                                self._descriptors[name] = entry
+                        if name == "sidechain-H":
+                            self._sidechainH_elements = np.array(entry["elements"])
+                            self._sidechainH_coordinates = np.array(
+                                entry["coordinates"]
+                            )
+                        elif name == "descriptors":
+                            self._descriptors.update(entry)
                     return True
         return False
 
@@ -108,15 +102,16 @@ class Rotamer:
                 **self._dunbrack_data,
                 "charge": self._charge,
                 "tautomer": self._tautomer,
-                "rotamer": {
-                    "elements": self._rotamer_elements.tolist(),
-                    "coordinates": self._rotamer_coordinates.tolist(),
-                },
-                "sidechain-H": {
-                    "elements": self._sidechainH_elements.tolist(),
-                    "coordinates": self._sidechainH_coordinates.tolist(),
-                },
             },
+        }
+        if self._rotamer_coordinates:
+            dictionary[self._key]["rotamer"] = {
+                "elements": self._rotamer_elements.tolist(),
+                "coordinates": self._rotamer_coordinates.tolist(),
+            }
+        dictionary[self._key]["sidechain-H"] = {
+            "elements": self._sidechainH_elements.tolist(),
+            "coordinates": self._sidechainH_coordinates.tolist(),
         }
         if self._descriptors:
             dictionary[self._key]["descriptors"] = {}
