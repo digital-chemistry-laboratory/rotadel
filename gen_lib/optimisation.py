@@ -308,17 +308,21 @@ def start_rotamer_xyz(
         geo.CG_CD_NE_CZ_diangle = dunbrack_data["chi4"]
     elif letter == "I":
         geo.N_CA_CB_CG1_diangle = dunbrack_data["chi1"]
+        geo.N_CA_CB_CG2_diangle = dunbrack_data["chi1"] + 121.3
         geo.CA_CB_CG1_CD1_diangle = dunbrack_data["chi2"]
     elif letter == "L":
         geo.N_CA_CB_CG_diangle = dunbrack_data["chi1"]
         geo.CA_CB_CG_CD1_diangle = dunbrack_data["chi2"]
+        geo.CA_CB_CG_CD2_diangle = dunbrack_data["chi2"] - 108.4
     elif letter == "P":
         geo.N_CA_CB_CG_diangle = dunbrack_data["chi1"]
         geo.CA_CB_CG_CD_diangle = dunbrack_data["chi2"]
     elif letter == "T":
         geo.N_CA_CB_OG1_diangle = dunbrack_data["chi1"]
+        geo.N_CA_CB_CG2_diangle = dunbrack_data["chi1"] + 120.3
     elif letter == "V":
         geo.N_CA_CB_CG1_diangle = dunbrack_data["chi1"]
+        geo.N_CA_CB_CG2_diangle = dunbrack_data["chi1"] + 119.5
     else:
         aa_1_chi = ["C", "S", "T", "V"]
         aa_2_chi = ["N", "D", "H", "I", "L", "F", "P", "W", "Y"]
