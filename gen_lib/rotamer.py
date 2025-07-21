@@ -104,7 +104,7 @@ class Rotamer:
                 "tautomer": self._tautomer,
             },
         }
-        if self._rotamer_coordinates:
+        if self._rotamer_coordinates is not None:
             dictionary[self._key]["rotamer"] = {
                 "elements": self._rotamer_elements.tolist(),
                 "coordinates": self._rotamer_coordinates.tolist(),
