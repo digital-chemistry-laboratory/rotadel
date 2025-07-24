@@ -58,6 +58,7 @@ def gen_dihedral_constraints(
         dihedral_constraints = [
             ([N, 4, 8, 11], dunbrack_data["chi1"]),
             ([4, 8, 11, 14], dunbrack_data["chi2"]),
+            ([8, 11, 14, N], dunbrack_data["chi3"]),
         ]
     elif letter in ["E", "M", "Q"]:
         E = 16
