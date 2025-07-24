@@ -128,6 +128,7 @@ def main(
     except Exception:
         # raise # Uncomment to see the error in the terminal as usual
         sys.stderr.write(f"*** Rotamer {rotamer_id}\n{traceback.format_exc()}\n")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
