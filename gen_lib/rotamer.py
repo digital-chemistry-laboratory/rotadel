@@ -2,6 +2,7 @@ from typing import Any
 from os import PathLike
 from pathlib import Path
 import json
+import sqlite3
 import numpy as np
 
 from gen_lib.optimisation import start_rotamer_xyz, get_opt_structures
@@ -30,12 +31,13 @@ class Rotamer:
         self._sidechainH_coordinates = None
         self._descriptors = {}
 
-    def load_existing_sidechain(self, json_file: str | PathLike) -> bool:
-        """Check if the sidechain already exists in the JSON file and load calculated data if applicable.
+    def load_existing_sidechain_json(self, json_file: str | PathLike) -> bool:
+        """Check if the sidechain already exists in the JSON file, if yes load its coordinates and descriptors.
         Args:
             JSON file with already calculated rotamer data
         Returns:
-            If same sidechain is already in JSON: True and copy existing data in Rotamer instance attributes.
+            If same sidechain is already in JSON:
+                True and copy existing sidechain and descriptors in Rotamer instance attributes.
             If not: False and does not copy data.
         """
         if Path(json_file).exists():
@@ -59,6 +61,57 @@ class Rotamer:
                             self._descriptors.update(entry)
                     return True
         return False
+
+    def load_existing_sidechain_sql(self, conn: sqlite3.Connection) -> bool:
+        """If a matching sidechain already exists in the SQLite DB, if yes load its coordinates and descriptors.
+        Args:
+            conn: SQLite connection to the database
+        Returns:
+            If same sidechain is already in DB:
+                True and copy existing sidechain and descriptors in Rotamer instance attributes.
+            If not: False and does not copy data.
+        """
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT rotamer_id, descriptors
+            FROM rotamers_data
+            WHERE res = ? AND chi1 = ? AND chi2 = ? AND chi3 IS ? AND chi4 IS ?
+            AND charge = ? AND tautomer IS ?
+            LIMIT 1
+        """,
+            (
+                self._dunbrack_data["res"],
+                self._dunbrack_data["chi1"],
+                self._dunbrack_data.get("chi2"),
+                self._dunbrack_data.get("chi3"),
+                self._dunbrack_data.get("chi4"),
+                self._charge,
+                self._tautomer,
+            ),
+        )
+        match = cur.fetchone()
+        if not match:
+            return False
+
+        matching_rotamer_key, descriptors = match
+
+        cur.execute(
+            """
+            SELECT element, x, y, z
+            FROM sidechainH_xyz
+            WHERE key = ?
+            ORDER BY atom_idx
+        """,
+            (matching_rotamer_key,),
+        )
+        rows = cur.fetchall()
+        self._sidechainH_elements = np.array([r[0] for r in rows])
+        self._sidechainH_coordinates = np.array([r[1:] for r in rows], dtype=float)
+
+        self._descriptors.update(json.loads(descriptors))
+
+        return True
 
     def opt_geometries(self) -> None:
         """Optimise the rotamer and sidechain-H geometries."""
@@ -129,3 +182,54 @@ class Rotamer:
         data.update(self.to_dict())
         with open(json_file, "w") as f:
             json.dump(data, f, indent=4)
+
+    def to_sql(self, conn: sqlite3.Connection) -> None:
+        """Save the rotamer data in a SQLite database."""
+        cur = conn.cursor()
+        cur.execute(
+            """
+            INSERT OR REPLACE INTO rotamers_data (rotamer_id, res, letter, phi, psi,
+            chi1, chi2, chi3, chi4, prob, charge, tautomer, descriptors)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+            (
+                self._key,
+                self._dunbrack_data["res"],
+                self._dunbrack_data["letter"],
+                self._dunbrack_data["phi"],
+                self._dunbrack_data["psi"],
+                self._dunbrack_data["chi1"],
+                self._dunbrack_data.get("chi2"),
+                self._dunbrack_data.get("chi3"),
+                self._dunbrack_data.get("chi4"),
+                self._dunbrack_data["prob"],
+                self._charge,
+                self._tautomer,
+                json.dumps(self._descriptors),
+            ),
+        )
+
+        if self._rotamer_coordinates is not None:
+            for i, (el, coord) in enumerate(
+                zip(self._rotamer_elements, self._rotamer_coordinates)
+            ):
+                cur.execute(
+                    """
+                    INSERT INTO rotamer_xyz (rotamer_id, atom_idx, element, x, y, z)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                    (self._key, i, el, *coord),
+                )
+
+        for i, (el, coord) in enumerate(
+            zip(self._sidechainH_elements, self._sidechainH_coordinates)
+        ):
+            cur.execute(
+                """
+                INSERT INTO sidechainH_xyz (rotamer_id, atom_idx, element, x, y, z)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """,
+                (self._key, i, el, *coord),
+            )
+
+        conn.commit()
