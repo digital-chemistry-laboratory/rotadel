@@ -100,7 +100,7 @@ class Rotamer:
             """
             SELECT element, x, y, z
             FROM sidechainH_xyz
-            WHERE key = ?
+            WHERE rotamer_id = ?
             ORDER BY atom_idx
         """,
             (matching_rotamer_key,),
