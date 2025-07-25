@@ -1,5 +1,6 @@
 from pathlib import Path
 import sqlite3
+import json
 
 
 def init_sql_db(db_path: str | Path) -> None:
@@ -42,3 +43,47 @@ def init_sql_db(db_path: str | Path) -> None:
         """
         )
     conn.commit()
+
+
+def display_rotamer_data(cursor: sqlite3.Cursor, rotamer_id: str) -> None:
+    """Display rotamer data from the SQL database.
+    Args:
+        cursor: SQLite cursor object
+        rotamer_id: ID of the rotamer to query
+    """
+    cursor.execute("SELECT * FROM rotamers_data WHERE rotamer_id = ?;", (rotamer_id,))
+    columns_names = [desc[0] for desc in cursor.description]
+    for row in cursor.fetchall():
+        rotamer_data = dict(zip(columns_names, row))
+        for col, val in rotamer_data.items():
+            if col == "rotamer_id":
+                print(f"{col}: {val}")
+            elif col == "descriptors":
+                print(f"\t{col}:")
+                formatted_descriptors = json.dumps(json.loads(val), indent=4)
+                for line in formatted_descriptors.splitlines():
+                    print(f"\t{line}")
+            else:
+                print(f"\t{col}: {val}")
+        print_xyz_from_sql(cursor, "rotamer_xyz", rotamer_id)
+        print_xyz_from_sql(cursor, "sidechainH_xyz", rotamer_id)
+        print("\n")
+
+
+def print_xyz_from_sql(
+    cursor: sqlite3.Cursor, table_name: str, rotamer_id: str
+) -> None:
+    """Print elements and xyz coordinates from table in SQL database.
+    Args:
+        cursor: SQLite cursor object
+        table_name: name of the table containing xyz data
+        rotamer_id: ID of the rotamer to query
+    """
+    print(f"\t{table_name}:")
+    cursor.execute(
+        f"SELECT element, x, y, z FROM {table_name} WHERE rotamer_id = ? ORDER BY atom_idx;",
+        (rotamer_id,),
+    )
+    for row in cursor.fetchall():
+        element, x, y, z = row
+        print(f"\t\t{element:<2} ({x:.3f}, {y:.3f}, {z:.3f})")
