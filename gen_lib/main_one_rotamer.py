@@ -39,7 +39,7 @@ def parse_args():
     )
     args = parser.parse_args()
 
-    return args.rotamer_id, args.angles_json, args.output_json
+    return args.rotamer_id, args.angles_json, args.output_db
 
 
 def main(
