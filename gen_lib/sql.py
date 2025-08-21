@@ -1,6 +1,7 @@
 from pathlib import Path
 import sqlite3
 import json
+import numpy as np
 
 
 def init_sql_db(db_path: str | Path) -> None:
@@ -87,3 +88,24 @@ def print_xyz_from_sql(
     for row in cursor.fetchall():
         element, x, y, z = row
         print(f"\t\t{element:<2} ({x:.3f}, {y:.3f}, {z:.3f})")
+
+
+def get_xyz_from_sql(
+    cursor: sqlite3.Cursor, table_name: str, rotamer_id: str
+) -> dict[str, np.ndarray]:
+    """Get XYZ coordinates of specified rotamer from SQL database.
+    Args:
+        cursor: SQLite cursor object
+        table_name: name of the table containing xyz data
+        rotamer_id: ID of the rotamer to query
+    Returns:
+        Dictionary with elements and xyz coordinates of the rotamer
+    """
+    cursor.execute(
+        f"SELECT element, x, y, z FROM {table_name} WHERE rotamer_id = ? ORDER BY atom_idx;",
+        (rotamer_id,),
+    )
+    rows = cursor.fetchall()
+    elements = np.array([row[0] for row in rows])
+    coords = np.array([[row[1], row[2], row[3]] for row in rows], dtype=float)
+    return {"elements": elements, "coordinates": coords}
