@@ -78,3 +78,50 @@ def query_target(
         )
 
     return closest_rot
+
+
+def query_average(
+    residue: str,
+    charge: int | None = None,
+    tautomer: str | None = None,
+    sql_path: str | Path | None = None,
+):
+    """Calculate the weighted averaged descriptors for a given residue, charge, and tautomer.
+    Args:
+        residue: amino acid type
+        charge: charge of the residue
+        tautomer: tautomer of the residue
+        sql_path: path to the SQL database file
+    Returns:
+        Dictionary with averaged descriptors weighted by the rotamers probability
+    """
+    if sql_path is None:
+        sql_path = SQL_PATH
+
+    def calc_weighted_desc(avg_desc, weight, desc):
+        for key, value in desc.items():
+            if isinstance(value, dict):
+                sub_desc = avg_desc.setdefault(key, {})
+                calc_weighted_desc(sub_desc, weight, value)
+            else:
+                avg_desc[key] = avg_desc.get(key, 0) + value * weight
+
+    with sqlite3.connect(sql_path) as conn:
+        cur = conn.cursor()
+        cur.execute(
+            """SELECT prob, descriptors FROM rotamers_data WHERE res = ?
+            AND (? IS NULL OR charge = ?)
+            AND (? IS NULL OR tautomer IS ?)""",
+            (residue, charge, charge, tautomer, tautomer),
+        )
+
+        avg_descriptors = {}
+        for prob_sidechain, desc_str in cur.fetchall():
+            prob_backbone = (
+                1  # replace by the P(phi,psi) once access to the NDRD library
+            )
+            prob_rotamer = prob_sidechain * prob_backbone
+            descriptors = json.loads(desc_str)
+            calc_weighted_desc(avg_descriptors, prob_rotamer, descriptors)
+
+        return avg_descriptors
