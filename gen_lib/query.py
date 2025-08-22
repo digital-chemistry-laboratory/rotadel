@@ -18,7 +18,7 @@ def query_target(
     charge: int,
     tautomer: str | None = None,
     sql_path: str | Path | None = None,
-):
+) -> dict[str, float | str | dict | None]:
     """Query the rotamer in the library whose side-chain is the closest (ignoring hydrogens) to the given structure
     Args:
         target_rotamer_xyz: xyz file of the target rotamer
@@ -71,5 +71,10 @@ def query_target(
                     "rmsd": rmsd_val,
                     "descriptors": json.loads(descriptors),
                 }
+
+    if closest_rot["rotamer_id"] is None:
+        raise ValueError(
+            "No matching rotamer found. Check the specified residue, charge, and tautomer."
+        )
 
     return closest_rot
