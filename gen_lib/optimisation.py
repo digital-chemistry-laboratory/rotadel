@@ -452,13 +452,19 @@ def get_opt_structures(
     is_pro = dunbrack_data["res"] == "PRO"
     replace_backbone(whole_folder / "xtbopt.xyz", sidechain_start_xyz, is_pro=is_pro)
 
-    # Optimise the H in the sidechain-H structure with fixed sidechain atoms
+    # Optimise the H in the sidechain-H structure
+    # Sidechain atoms are fixed except the H(s) on the same C as the H replacing the backbone
+    # Atom indices are 1-based
     last_atom = get_atom_count(sidechain_start_xyz)
     if is_pro:
         # For proline, two Hs were added and need to be optimised (at first and last positions)
-        fixed_atoms = list(range(2, 10))  # atom indices are 1-based
+        fixed_atoms = [2] + list(range(5, 9))
+    elif dunbrack_data["letter"] in ["I", "T", "V"]:
+        # H 3 also on beta C
+        fixed_atoms = [2] + list(range(4, last_atom + 1))
     else:
-        fixed_atoms = list(range(2, last_atom + 1))  # atom indices are 1-based
+        # Hs 3 and 4 also on beta C
+        fixed_atoms = [2] + list(range(5, last_atom + 1))
 
     run_constraint_xtb(
         xyz_file=sidechain_start_xyz,
