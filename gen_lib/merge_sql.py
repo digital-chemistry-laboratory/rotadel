@@ -52,9 +52,4 @@ def main(db_folder: Iterable[Path], merged_db_path: Path) -> None:
 
 if __name__ == "__main__":
     db_folder, merged_db_path = parse_args()
-    # db_folder = "/cluster/project/jorner/lajacot/projects/aa-descriptors-library/gen_lib/data/batches_sql_output"
-    # merged_db_path = (
-    #     "/cluster/project/jorner/lajacot/projects/aa-descriptors-library/"
-    #     "gen_lib/data/merged_rotamer_sql_2.db"
-    # )
     main(db_folder, merged_db_path)
