@@ -501,7 +501,7 @@ def get_opt_structures(
     if letter in ["C", "S", "T", "V"]:
         sidechain_constraint = None
     else:
-        sidechain_constraint = gen_sidechain_constraint(sidechain_constraint, letter)
+        sidechain_constraint = gen_sidechain_constraint(dihedral_constraints, letter)
 
     run_constraint_xtb(
         xyz_file=sidechain_start_xyz,
