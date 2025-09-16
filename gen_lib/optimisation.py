@@ -357,25 +357,8 @@ def start_rotamer_xyz(
         geo.N_CA_CB_CG1_diangle = dunbrack_data["chi1"]
         geo.N_CA_CB_CG2_diangle = dunbrack_data["chi1"] + 119.5
     else:
-        if letter in NUMBER_OF_CHI_ANGLES["1"]:
-            geo.inputRotamers([dunbrack_data["chi1"]])
-        elif letter in NUMBER_OF_CHI_ANGLES["2"]:
-            geo.inputRotamers([dunbrack_data["chi1"], dunbrack_data["chi2"]])
-        elif letter in NUMBER_OF_CHI_ANGLES["3"]:
-            geo.inputRotamers(
-                [dunbrack_data["chi1"], dunbrack_data["chi2"], dunbrack_data["chi3"]]
-            )
-        elif letter in NUMBER_OF_CHI_ANGLES["4"]:
-            geo.inputRotamers(
-                [
-                    dunbrack_data["chi1"],
-                    dunbrack_data["chi2"],
-                    dunbrack_data["chi3"],
-                    dunbrack_data["chi4"],
-                ]
-            )
-        else:
-            raise ValueError(f"Unknown amino acid letter: {letter}")
+        n = NUMBER_OF_CHI_ANGLES[letter]
+        geo.inputRotamers([dunbrack_data[f"chi{i}"] for i in range(1, n + 1)])
     structure = PeptideBuilder.initialize_res(geo)
     PeptideBuilder.add_terminal_OXT(structure)
     outfile = PDBIO()
