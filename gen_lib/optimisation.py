@@ -12,7 +12,8 @@ from openmm.app import PDBFile, Modeller
 from openbabel import pybel
 import os
 
-from .utils import get_atom_count
+from gen_lib.utils import get_atom_count
+from gen_lib.constants import NUMBER_OF_CHI_ANGLES
 from . import config
 
 
@@ -356,19 +357,15 @@ def start_rotamer_xyz(
         geo.N_CA_CB_CG1_diangle = dunbrack_data["chi1"]
         geo.N_CA_CB_CG2_diangle = dunbrack_data["chi1"] + 119.5
     else:
-        aa_1_chi = ["C", "S", "T", "V"]
-        aa_2_chi = ["N", "D", "H", "I", "L", "F", "P", "W", "Y"]
-        aa_3_chi = ["Q", "E", "M"]
-        aa_4_chi = ["R", "K"]
-        if letter in aa_1_chi:
+        if letter in NUMBER_OF_CHI_ANGLES["1"]:
             geo.inputRotamers([dunbrack_data["chi1"]])
-        elif letter in aa_2_chi:
+        elif letter in NUMBER_OF_CHI_ANGLES["2"]:
             geo.inputRotamers([dunbrack_data["chi1"], dunbrack_data["chi2"]])
-        elif letter in aa_3_chi:
+        elif letter in NUMBER_OF_CHI_ANGLES["3"]:
             geo.inputRotamers(
                 [dunbrack_data["chi1"], dunbrack_data["chi2"], dunbrack_data["chi3"]]
             )
-        elif letter in aa_4_chi:
+        elif letter in NUMBER_OF_CHI_ANGLES["4"]:
             geo.inputRotamers(
                 [
                     dunbrack_data["chi1"],
