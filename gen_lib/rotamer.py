@@ -76,13 +76,12 @@ class Rotamer:
             """
             SELECT rotamer_id, descriptors
             FROM rotamers_data
-            WHERE res = ? AND chi1 = ? AND chi2 = ? AND chi3 IS ? AND chi4 IS ?
+            WHERE res = ? AND chi2 = ? AND chi3 IS ? AND chi4 IS ?
             AND charge = ? AND tautomer IS ?
             LIMIT 1
         """,
             (
                 self._dunbrack_data["res"],
-                self._dunbrack_data["chi1"],
                 self._dunbrack_data.get("chi2"),
                 self._dunbrack_data.get("chi3"),
                 self._dunbrack_data.get("chi4"),
