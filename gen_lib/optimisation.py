@@ -80,6 +80,37 @@ def gen_dihedral_constraints(
     return dihedral_constraints
 
 
+def gen_sidechain_constraint(
+    dihedrals_rotamer: list[tuple[list[int], float]],
+    aa_letter: str,
+) -> list[tuple[list[int], float]]:
+    """Adapt the constraints which are needed for H relaxation in sidechain-H
+    Args:
+        dihedrals_rotamer: list of dihedral constraints of the whole rotamer
+        aa_letter: one-letter code of the amino acid
+    Returns:
+        chi2 (and chi3 for proline) constraints for the sidechain-H
+    """
+    if aa_letter in ["C", "S", "T", "V"]:
+        raise ValueError(f"No chi angle kept in the side-chain of {aa_letter}.")
+    elif aa_letter == "P":
+        sidechain_constraints = [
+            ([1, 2, 5, 8], dihedrals_rotamer[1][1]),
+            ([2, 5, 8, 11], dihedrals_rotamer[2][1]),
+        ]
+    elif aa_letter == "I":
+        sidechain_constraints = [([1, 2, 4, 11], dihedrals_rotamer[1][1])]
+    else:
+        sidechain_constraints = [
+            (
+                [a - b for a, b in zip(dihedrals_rotamer[1][0], (4, 7, 7, 7))],
+                dihedrals_rotamer[1][1],
+            )
+        ]
+
+    return sidechain_constraints
+
+
 def write_xcontrol(
     file: PathLike | str,
     fixed_atoms: list[int] = None,
@@ -465,11 +496,18 @@ def get_opt_structures(
     else:
         # Hs 3 and 4 also on beta C
         fixed_atoms = [2] + list(range(5, last_atom + 1))
+    # Dihedral constraint for the H to optimise is added
+    letter = dunbrack_data["letter"]
+    if letter in ["C", "S", "T", "V"]:
+        sidechain_constraint = None
+    else:
+        sidechain_constraint = gen_sidechain_constraint(sidechain_constraint, letter)
 
     run_constraint_xtb(
         xyz_file=sidechain_start_xyz,
         path_run=sidechain_folder,
         fixed_atoms=fixed_atoms,
+        dihedral_constraints=sidechain_constraint,
         charge=charge,
     )
 
