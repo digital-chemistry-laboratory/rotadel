@@ -41,15 +41,29 @@ def query_closest_rmsd(
     el_target_noHs = el_target[mask_noHs]
     coords_target_noHs = coords_target[mask_noHs]
 
-    closest_rot = {"rotamer_id": None, "rmsd": float("inf"), "descriptors": None}
+    closest_rot = {
+        "rotamer_id": None,
+        "rmsd": float("inf"),
+        "chis": {"chi2": None, "chi3": None, "chi4": None},
+        "descriptors": None,
+    }
 
     with sqlite3.connect(sql_path) as conn:
         cur = conn.cursor()
         cur.execute(
-            "SELECT rotamer_id, descriptors FROM rotamers_data where res = ? AND charge = ? AND tautomer IS ?",
+            """
+            SELECT rotamer_id, chi2, chi3, chi4, descriptors FROM rotamers_data
+            where res = ? AND charge = ? AND tautomer IS ?
+            """,
             (residue, charge, tautomer),
         )
-        for rotamer_id, descriptors in cur.fetchall():
+        for rotamer_id, chi2, chi3, chi4, descriptors in cur.fetchall():
+            if (chi2, chi3, chi4) == (
+                closest_rot["chis"]["chi2"],
+                closest_rot["chis"]["chi3"],
+                closest_rot["chis"]["chi4"],
+            ):
+                continue
             rotamer_xyz = get_xyz_from_sql(cur, "sidechainH_xyz", rotamer_id)
             el_rotamer, coords_rotamer = (
                 rotamer_xyz["elements"],
@@ -72,6 +86,7 @@ def query_closest_rmsd(
                 closest_rot = {
                     "rotamer_id": rotamer_id,
                     "rmsd": rmsd_val,
+                    "chis": {"chi2": chi2, "chi3": chi3, "chi4": chi4},
                     "descriptors": json.loads(descriptors),
                 }
 
@@ -139,6 +154,7 @@ def query_closest_angles(
     closest_rot = {
         "rotamer_id": None,
         "chis_distance": float("inf"),
+        "chis": {"chi2": None, "chi3": None, "chi4": None},
         "descriptors": None,
     }
 
@@ -152,6 +168,12 @@ def query_closest_angles(
             (target_name, charge, tautomer),
         )
         for rotamer_id, chi2, chi3, chi4, descriptors in cur.fetchall():
+            if (chi2, chi3, chi4) == (
+                closest_rot["chis"]["chi2"],
+                closest_rot["chis"]["chi3"],
+                closest_rot["chis"]["chi4"],
+            ):
+                continue
             chis_dist = distance_angles(
                 [target_chi2, target_chi3, target_chi4], [chi2, chi3, chi4]
             )
@@ -159,6 +181,7 @@ def query_closest_angles(
                 closest_rot = {
                     "rotamer_id": rotamer_id,
                     "chis_distance": chis_dist,
+                    "chis": {"chi2": chi2, "chi3": chi3, "chi4": chi4},
                     "descriptors": json.loads(descriptors),
                 }
 
@@ -190,7 +213,6 @@ def distance_angles(angles1: list[float], angles2: list[float]) -> float:
             continue
         diff = abs(((a1 - a2 + 180.0) % 360.0) - 180.0)
         dist += diff**2
-    print(dist)
     return dist**0.5
 
 
