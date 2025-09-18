@@ -18,3 +18,28 @@ NUMBER_OF_CHI_ANGLES = {
     "R": 4,
     "K": 4,
 }
+
+ONE_TO_THREE_AA = {
+    "A": "ALA",
+    "R": "ARG",
+    "N": "ASN",
+    "D": "ASP",
+    "C": "CYS",
+    "Q": "GLN",
+    "E": "GLU",
+    "G": "GLY",
+    "H": "HIS",
+    "I": "ILE",
+    "L": "LEU",
+    "K": "LYS",
+    "M": "MET",
+    "F": "PHE",
+    "P": "PRO",
+    "S": "SER",
+    "T": "THR",
+    "W": "TRP",
+    "Y": "TYR",
+    "V": "VAL",
+}
+
+THREE_TO_ONE_AA = {v: k for k, v in ONE_TO_THREE_AA.items()}
