@@ -451,6 +451,7 @@ def get_opt_structures(
         path_run=whole_folder,
         dihedral_constraints=dihedral_constraints,
         charge=charge,
+        fc=1.0,
     )
 
     # Replace backbone by H in optimised rotamer
@@ -489,6 +490,7 @@ def get_opt_structures(
         fixed_atoms=fixed_atoms,
         dihedral_constraints=sidechain_constraint,
         charge=charge,
+        fc=5.0,
     )
 
     # Save the optimised sidechain-H and whole rotamer in dictionary
