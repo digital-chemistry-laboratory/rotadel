@@ -22,15 +22,16 @@ def query_closest_rmsd(
     tautomer: str | None = None,
     sql_path: str | Path | None = None,
 ) -> dict[str, float | str | dict | None]:
-    """Query the rotamer in the library with minimum side-chain RMSD (ignoring hydrogens) to the given structure
+    """Query the rotamer in the library with minimum side-chain RMSD (ignoring hydrogens) to the given structure.
+    Caveat: not recommended because takes time, use query_closest_angles instead.
     Args:
         target_rotamer_xyz: xyz file of the target rotamer
-        residue: amino acid type of the target rotamer
+        residue: three-letter code of the amino acid type of the target rotamer
         charge: charge of the target rotamer
         tautomer: tautomer of the target rotamer if applicable
         sql_path: path to the SQL database file
     Returns:
-        Dictionary with ID, RMSD, and descriptors of the closest rotamer found in the library
+        Dictionary with ID, RMSD, side-chain chi angles, and descriptors of the closest rotamer found in the library
     """
     if sql_path is None:
         sql_path = SQL_PATH
@@ -47,6 +48,7 @@ def query_closest_rmsd(
         "chis": {"chi2": None, "chi3": None, "chi4": None},
         "descriptors": None,
     }
+    already_calculated = set()
 
     with sqlite3.connect(sql_path) as conn:
         cur = conn.cursor()
@@ -58,12 +60,9 @@ def query_closest_rmsd(
             (residue, charge, tautomer),
         )
         for rotamer_id, chi2, chi3, chi4, descriptors in cur.fetchall():
-            if (chi2, chi3, chi4) == (
-                closest_rot["chis"]["chi2"],
-                closest_rot["chis"]["chi3"],
-                closest_rot["chis"]["chi4"],
-            ):
+            if (chi2, chi3, chi4) in already_calculated:
                 continue
+            already_calculated.add((chi2, chi3, chi4))
             rotamer_xyz = get_xyz_from_sql(cur, "sidechainH_xyz", rotamer_id)
             el_rotamer, coords_rotamer = (
                 rotamer_xyz["elements"],
@@ -100,7 +99,7 @@ def query_closest_rmsd(
 
 def query_closest_angles(
     pdb_file: str | Path,
-    res_number: int,
+    target_res_nb: int,
     charge: int,
     tautomer: str | None = None,
     sql_path: str | Path | None = None,
@@ -108,18 +107,19 @@ def query_closest_angles(
     """Query the rotamer in the library with minimum side-chain angles distance to the given structure.
     Args:
         pdb_file: pdb file containning the target residue
-        res_number: sequence number of the target residue in the pdb file
+        target_res_nb: sequence number of the target residue in the pdb file
         charge: charge of the target residue
-        tautomer: tautomer of the target residue if applicable
+        tautomer: tautomer of the target residue if applicable ("D" or "E" for histidine)
         sql_path: path to the SQL database file
     Returns:
-        Dictionary with ID, angles distance, and descriptors of the closest rotamer found in the library
+        Dictionary with ID, angles distance, side-chain chi angles,
+        and descriptors of the closest rotamer found in the library
     """
     if sql_path is None:
         sql_path = SQL_PATH
 
     traj = md.load(pdb_file)
-    target_name = traj.topology.residue(res_number - 1).name
+    target_name = traj.topology.residue(target_res_nb - 1).name
 
     def compute_chi_from_res(traj, res_nb, which_chi):
         # MDTraj functions compute all chi_i present in the pdb
@@ -147,9 +147,15 @@ def query_closest_angles(
         return chi
 
     nb_chis = NUMBER_OF_CHI_ANGLES[THREE_TO_ONE_AA[target_name]]
-    target_chi2 = compute_chi_from_res(traj, res_number, "2") if nb_chis >= 2 else None
-    target_chi3 = compute_chi_from_res(traj, res_number, "3") if nb_chis >= 3 else None
-    target_chi4 = compute_chi_from_res(traj, res_number, "4") if nb_chis >= 4 else None
+    target_chi2 = (
+        compute_chi_from_res(traj, target_res_nb, "2") if nb_chis >= 2 else None
+    )
+    target_chi3 = (
+        compute_chi_from_res(traj, target_res_nb, "3") if nb_chis >= 3 else None
+    )
+    target_chi4 = (
+        compute_chi_from_res(traj, target_res_nb, "4") if nb_chis >= 4 else None
+    )
 
     closest_rot = {
         "rotamer_id": None,
@@ -157,6 +163,7 @@ def query_closest_angles(
         "chis": {"chi2": None, "chi3": None, "chi4": None},
         "descriptors": None,
     }
+    already_calculated = set()
 
     with sqlite3.connect(sql_path) as conn:
         cur = conn.cursor()
@@ -168,12 +175,9 @@ def query_closest_angles(
             (target_name, charge, tautomer),
         )
         for rotamer_id, chi2, chi3, chi4, descriptors in cur.fetchall():
-            if (chi2, chi3, chi4) == (
-                closest_rot["chis"]["chi2"],
-                closest_rot["chis"]["chi3"],
-                closest_rot["chis"]["chi4"],
-            ):
+            if (chi2, chi3, chi4) in already_calculated:
                 continue
+            already_calculated.add((chi2, chi3, chi4))
             chis_dist = distance_angles(
                 [target_chi2, target_chi3, target_chi4], [chi2, chi3, chi4]
             )
