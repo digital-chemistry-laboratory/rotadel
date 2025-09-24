@@ -19,6 +19,7 @@ gfnff_*
 *.out
 *.error
 HT*
+logs
 
 ### Project related
 # All data folders
@@ -28,3 +29,6 @@ data*/
 test*
 # Analysis folder
 analysis
+
+### Package related
+*.egg-info/
