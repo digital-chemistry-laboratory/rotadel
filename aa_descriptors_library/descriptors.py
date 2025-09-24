@@ -4,7 +4,7 @@ from morfeus.typing import Array1DStr, Array2DFloat
 from typing import Any
 from rdkit.Chem import MolFromXYZBlock, rdDetermineBonds
 
-from .utils import xyz_string
+from aa_descriptors_library.utils import xyz_string
 
 
 def move_central_atom(

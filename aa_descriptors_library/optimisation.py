@@ -12,9 +12,9 @@ from openmm.app import PDBFile, Modeller
 from openbabel import pybel
 import os
 
-from gen_lib.utils import get_atom_count
-from gen_lib.constants import NUMBER_OF_CHI_ANGLES
-from . import config
+from aa_descriptors_library.utils import get_atom_count
+from aa_descriptors_library.constants import NUMBER_OF_CHI_ANGLES
+from aa_descriptors_library import config
 
 
 def gen_dihedral_constraints(

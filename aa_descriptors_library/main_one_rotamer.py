@@ -8,9 +8,9 @@ import traceback
 import json
 import sqlite3
 
-from gen_lib.utils import lock
-from gen_lib.rotamer import Rotamer
-from gen_lib.sql import init_sql_db
+from aa_descriptors_library.utils import lock
+from aa_descriptors_library.rotamer import Rotamer
+from aa_descriptors_library.sql import init_sql_db
 
 
 def parse_args():

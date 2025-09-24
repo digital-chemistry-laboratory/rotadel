@@ -5,8 +5,8 @@ import json
 import sqlite3
 import numpy as np
 
-from gen_lib.optimisation import start_rotamer_xyz, get_opt_structures
-from gen_lib.descriptors import calc_descriptors
+from aa_descriptors_library.optimisation import start_rotamer_xyz, get_opt_structures
+from aa_descriptors_library.descriptors import calc_descriptors
 
 
 class Rotamer:

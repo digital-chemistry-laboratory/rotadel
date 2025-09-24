@@ -6,11 +6,11 @@ from spyrmsd.rmsd import rmsd
 import mdtraj as md
 import numpy as np
 
-from gen_lib.sql import get_xyz_from_sql
-from gen_lib.constants import NUMBER_OF_CHI_ANGLES, THREE_TO_ONE_AA
+from aa_descriptors_library.sql import get_xyz_from_sql
+from aa_descriptors_library.constants import NUMBER_OF_CHI_ANGLES, THREE_TO_ONE_AA
 
 SQL_PATH = (
-    "/cluster/project/jorner/lajacot/projects/aa-descriptors-library/gen_lib/"
+    "/cluster/project/jorner/lajacot/projects/aa-descriptors-library/aa_descriptors_library/"
     "data/merged_whole_filtered_library_sql.db"
 )
 

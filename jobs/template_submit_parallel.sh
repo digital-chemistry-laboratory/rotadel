@@ -37,8 +37,8 @@ export VECLIB_MAXIMUM_THREADS=1
 # Variables for the job
 input_file="${BATCH_FILE}" # Exported from the submit_batches.sh script
 batch_number=$(basename "${input_file}" | sed 's/\.[^.]*$//' | awk -F'_' '{print $NF}')
-angles_json="data/angles_Dunbrack.json"
-output_path="data/batches_sql_output/rotamer_descriptors_${batch_number}.db"
+angles_json="../data/angles_Dunbrack.json"
+output_path="../data/batches_sql_output/rotamer_descriptors_${batch_number}.db"
 # Prevent output file already existing from a previous run
 if [ -f "${output_path}" ]; then
     echo "ERROR: File ${output_path} already exists. Provide a different output path." >&2
@@ -60,7 +60,7 @@ env_parallel \
 --wd $PWD \
 --jobs ${SLURM_NTASKS} \
 --timeout 300 \
-"python main_one_rotamer.py {} ${angles_json} -o ${output_path}"
+"python -m aa_descriptors_library.main_one_rotamer {} ${angles_json} -o ${output_path}"
 # --resume-failed \
 
 # Calculate run times

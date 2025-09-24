@@ -6,7 +6,7 @@ The angles and probabilities are extracted, and a unique ID is generated for eac
 import pandas as pd
 
 lib_file = "/cluster/project/jorner/lajacot/projects/aa-descriptors-library/Dunbrack_library/ALL_rotamers.lib"
-json_output = "/cluster/project/jorner/lajacot/projects/aa-descriptors-library/gen_lib/data/angles_Dunbrack.json"
+json_output = "/cluster/project/jorner/lajacot/projects/aa-descriptors-library/aa_descriptors_library/data/angles_Dunbrack.json"
 
 column_names = [
     "res",

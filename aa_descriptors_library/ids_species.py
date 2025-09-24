@@ -25,7 +25,7 @@ The ID format is (all attached):
 Save into a csv file to use to with GNU parallel to run calculations on all rotamers.
 """
 
-dunbrack_json = "/cluster/project/jorner/lajacot/projects/aa-descriptors-library/gen_lib/data/angles_Dunbrack.json"
+dunbrack_json = "/cluster/project/jorner/lajacot/projects/aa-descriptors-library/aa_descriptors_library/data/angles_Dunbrack.json"
 with open(dunbrack_json, "r") as f:
     all_rotamers_data = json.load(f)
 
