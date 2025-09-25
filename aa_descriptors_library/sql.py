@@ -92,14 +92,14 @@ def print_xyz_from_sql(
 
 def get_xyz_from_sql(
     cursor: sqlite3.Cursor, table_name: str, rotamer_id: str
-) -> dict[str, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Get XYZ coordinates of specified rotamer from SQL database.
     Args:
         cursor: SQLite cursor object
         table_name: name of the table containing xyz data
         rotamer_id: ID of the rotamer to query
     Returns:
-        Dictionary with elements and xyz coordinates of the rotamer
+        Elements and xyz coordinates of the rotamer
     """
     cursor.execute(
         f"SELECT element, x, y, z FROM {table_name} WHERE rotamer_id = ? ORDER BY atom_idx;",
@@ -108,4 +108,4 @@ def get_xyz_from_sql(
     rows = cursor.fetchall()
     elements = np.array([row[0] for row in rows])
     coords = np.array([[row[1], row[2], row[3]] for row in rows], dtype=float)
-    return {"elements": elements, "coordinates": coords}
+    return elements, coords

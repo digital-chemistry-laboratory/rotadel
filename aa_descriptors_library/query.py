@@ -64,10 +64,8 @@ def query_closest_rmsd(
             if (chi2, chi3, chi4) in already_calculated:
                 continue
             already_calculated.add((chi2, chi3, chi4))
-            rotamer_xyz = get_xyz_from_sql(cur, "sidechainH_xyz", rotamer_id)
-            el_rotamer, coords_rotamer = (
-                rotamer_xyz["elements"],
-                rotamer_xyz["coordinates"],
+            el_rotamer, coords_rotamer = get_xyz_from_sql(
+                cur, "sidechainH_xyz", rotamer_id
             )
 
             # Remove hydrogens
