@@ -6,6 +6,7 @@ from spyrmsd.rmsd import rmsd
 import mdtraj as md
 import numpy as np
 import pandas as pd
+from typing_extensions import deprecated
 
 from aa_descriptors_library.sql import get_xyz_from_sql
 from aa_descriptors_library.constants import NUMBER_OF_CHI_ANGLES, THREE_TO_ONE_AA
@@ -16,88 +17,7 @@ NDRD_PATH = (
 )
 
 
-def query_closest_rmsd(
-    target_rotamer_xyz: str | Path,
-    residue: str,
-    charge: int,
-    tautomer: str | None = None,
-    sql_path: str | Path | None = None,
-) -> dict[str, float | str | dict | None]:
-    """Query the rotamer in the library with minimum side-chain RMSD (ignoring hydrogens) to the given structure.
-    Caveat: not recommended because takes time, use query_closest_angles instead.
-    Args:
-        target_rotamer_xyz: xyz file of the target rotamer
-        residue: three-letter code of the amino acid type of the target rotamer
-        charge: charge of the target rotamer
-        tautomer: tautomer of the target rotamer if applicable
-        sql_path: path to the SQL database file
-    Returns:
-        Dictionary with ID, RMSD, side-chain chi angles, and descriptors of the closest rotamer found in the library
-    """
-    if sql_path is None:
-        sql_path = SQL_PATH
-
-    el_target, coords_target = read_xyz(target_rotamer_xyz)
-    # Remove hydrogens
-    mask_noHs = el_target != "H"
-    el_target_noHs = el_target[mask_noHs]
-    coords_target_noHs = coords_target[mask_noHs]
-
-    closest_rot = {
-        "rotamer_id": None,
-        "rmsd": float("inf"),
-        "chis": {"chi2": None, "chi3": None, "chi4": None},
-        "descriptors": None,
-    }
-    already_calculated = set()
-
-    with sqlite3.connect(sql_path) as conn:
-        cur = conn.cursor()
-        cur.execute(
-            """
-            SELECT rotamer_id, chi2, chi3, chi4, descriptors FROM rotamers_data
-            where res = ? AND charge = ? AND tautomer IS ?
-            """,
-            (residue, charge, tautomer),
-        )
-        for rotamer_id, chi2, chi3, chi4, descriptors in cur.fetchall():
-            if (chi2, chi3, chi4) in already_calculated:
-                continue
-            already_calculated.add((chi2, chi3, chi4))
-            el_rotamer, coords_rotamer = get_xyz_from_sql(
-                cur, "sidechainH_xyz", rotamer_id
-            )
-
-            # Remove hydrogens
-            el_rotamer_noHs = el_rotamer[mask_noHs]
-            coords_rotamer_noHs = coords_rotamer[mask_noHs]
-
-            rmsd_val = rmsd(
-                coords_target_noHs,
-                coords_rotamer_noHs,
-                el_target_noHs,
-                el_rotamer_noHs,
-                center=True,
-                minimize=True,
-            )
-            if rmsd_val < closest_rot["rmsd"]:
-                closest_rot = {
-                    "rotamer_id": rotamer_id,
-                    "rmsd": rmsd_val,
-                    "chis": {"chi2": chi2, "chi3": chi3, "chi4": chi4},
-                    "descriptors": json.loads(descriptors),
-                }
-
-    if closest_rot["rotamer_id"] is None:
-        raise ValueError(
-            "No matching rotamer found. Check the specified residue, charge, and tautomer."
-        )
-    closest_rot["descriptors"] = round_dict(closest_rot["descriptors"])
-
-    return closest_rot
-
-
-def query_closest_angles(
+def query_closest(
     pdb_file: str | Path,
     target_res_nb: int,
     charge: int,
@@ -431,3 +351,87 @@ def parse_ndrd(
         )
 
     return backbone_probs
+
+
+@deprecated("Use query_closest instead.")
+def query_closest_rmsd(
+    target_rotamer_xyz: str | Path,
+    residue: str,
+    charge: int,
+    tautomer: str | None = None,
+    sql_path: str | Path | None = None,
+) -> dict[str, float | str | dict | None]:
+    """DEPRECATED: does not account for chi2 info because ignore hydrogens + takes time.
+    Use `query_closest`, based on chi angles distance, instead.
+
+    Query the rotamer in the library with minimum side-chain RMSD (ignoring hydrogens) to the given structure.
+    Args:
+        target_rotamer_xyz: xyz file of the target rotamer
+        residue: three-letter code of the amino acid type of the target rotamer
+        charge: charge of the target rotamer
+        tautomer: tautomer of the target rotamer if applicable
+        sql_path: path to the SQL database file
+    Returns:
+        Dictionary with ID, RMSD, side-chain chi angles, and descriptors of the closest rotamer found in the library
+    """
+    if sql_path is None:
+        sql_path = SQL_PATH
+
+    el_target, coords_target = read_xyz(target_rotamer_xyz)
+    # Remove hydrogens
+    mask_noHs = el_target != "H"
+    el_target_noHs = el_target[mask_noHs]
+    coords_target_noHs = coords_target[mask_noHs]
+
+    closest_rot = {
+        "rotamer_id": None,
+        "rmsd": float("inf"),
+        "chis": {"chi2": None, "chi3": None, "chi4": None},
+        "descriptors": None,
+    }
+    already_calculated = set()
+
+    with sqlite3.connect(sql_path) as conn:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT rotamer_id, chi2, chi3, chi4, descriptors FROM rotamers_data
+            where res = ? AND charge = ? AND tautomer IS ?
+            """,
+            (residue, charge, tautomer),
+        )
+        for rotamer_id, chi2, chi3, chi4, descriptors in cur.fetchall():
+            if (chi2, chi3, chi4) in already_calculated:
+                continue
+            already_calculated.add((chi2, chi3, chi4))
+            el_rotamer, coords_rotamer = get_xyz_from_sql(
+                cur, "sidechainH_xyz", rotamer_id
+            )
+
+            # Remove hydrogens
+            el_rotamer_noHs = el_rotamer[mask_noHs]
+            coords_rotamer_noHs = coords_rotamer[mask_noHs]
+
+            rmsd_val = rmsd(
+                coords_target_noHs,
+                coords_rotamer_noHs,
+                el_target_noHs,
+                el_rotamer_noHs,
+                center=True,
+                minimize=True,
+            )
+            if rmsd_val < closest_rot["rmsd"]:
+                closest_rot = {
+                    "rotamer_id": rotamer_id,
+                    "rmsd": rmsd_val,
+                    "chis": {"chi2": chi2, "chi3": chi3, "chi4": chi4},
+                    "descriptors": json.loads(descriptors),
+                }
+
+    if closest_rot["rotamer_id"] is None:
+        raise ValueError(
+            "No matching rotamer found. Check the specified residue, charge, and tautomer."
+        )
+    closest_rot["descriptors"] = round_dict(closest_rot["descriptors"])
+
+    return closest_rot
