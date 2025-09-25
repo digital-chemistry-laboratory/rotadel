@@ -94,6 +94,7 @@ def query_closest_rmsd(
         raise ValueError(
             "No matching rotamer found. Check the specified residue, charge, and tautomer."
         )
+    closest_rot["descriptors"] = round_dict(closest_rot["descriptors"])
 
     return closest_rot
 
@@ -194,6 +195,7 @@ def query_closest_angles(
             raise ValueError(
                 "No matching rotamer found. Check the specified residue number, charge, and tautomer."
             )
+        closest_rot["descriptors"] = round_dict(closest_rot["descriptors"])
 
     return closest_rot
 
@@ -219,6 +221,24 @@ def distance_angles(angles1: list[float], angles2: list[float]) -> float:
         diff = abs(((a1 - a2 + 180.0) % 360.0) - 180.0)
         dist += diff**2
     return dist**0.5
+
+
+def round_dict(dictionary: dict, decimals: int = 6) -> dict:
+    """Recursively round up all float values in a nested dictionary.
+    Args:
+        d: dictionary to round up
+        decimals: number of decimal places to round to
+    Returns:
+        The updated dictionary with rounded float values
+    """
+    for key, value in dictionary.items():
+        if isinstance(value, dict):
+            round_dict(value, decimals)
+        elif isinstance(value, float):
+            dictionary[key] = round(value, decimals)
+        else:
+            continue
+    return dictionary
 
 
 def query_average(
@@ -279,7 +299,7 @@ def query_average(
             descriptors = json.loads(desc_str)
             calc_weighted_desc(avg_descriptors, prob_rotamer, descriptors)
 
-        return avg_descriptors
+        return round_dict(avg_descriptors)
 
 
 def parse_ndrd(
