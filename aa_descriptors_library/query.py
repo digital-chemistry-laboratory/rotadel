@@ -5,13 +5,14 @@ from morfeus import read_xyz
 from spyrmsd.rmsd import rmsd
 import mdtraj as md
 import numpy as np
+import pandas as pd
 
 from aa_descriptors_library.sql import get_xyz_from_sql
 from aa_descriptors_library.constants import NUMBER_OF_CHI_ANGLES, THREE_TO_ONE_AA
 
-SQL_PATH = (
-    "/cluster/project/jorner/lajacot/projects/aa-descriptors-library/aa_descriptors_library/"
-    "data/merged_whole_filtered_library_sql.db"
+SQL_PATH = "/cluster/project/jorner/lajacot/projects/aa-descriptors-library/data/merged_whole_filtered_library_sql.db"
+NDRD_PATH = (
+    "/cluster/project/jorner/lajacot/projects/aa-descriptors-library/data/ndrd.csv"
 )
 
 
@@ -222,21 +223,31 @@ def distance_angles(angles1: list[float], angles2: list[float]) -> float:
 
 def query_average(
     residue: str,
+    left_neighbour: str | None = None,
+    right_neighbour: str | None = None,
     charge: int | None = None,
     tautomer: str | None = None,
     sql_path: str | Path | None = None,
-):
+    ndrd_path: str | Path | None = None,
+) -> dict[str, float | dict]:
     """Calculate the weighted averaged descriptors for a given residue, charge, and tautomer.
     Args:
-        residue: amino acid type
+        residue: three letter code of the amino acid type
+        left_neighbour: three letter code of the amino acid left from `residue`
+        right_neighbour: three letter code of the amino acid right from `residue`
         charge: charge of the residue
-        tautomer: tautomer of the residue
+        tautomer: tautomer of the residue if applicable ("D" or "E" for histidine)
         sql_path: path to the SQL database file
+        ndrd_path: path to the csv file with NDRD data
     Returns:
         Dictionary with averaged descriptors weighted by the rotamers probability
     """
     if sql_path is None:
         sql_path = SQL_PATH
+    if ndrd_path is None:
+        ndrd_path = NDRD_PATH
+
+    backbone_probs = parse_ndrd(ndrd_path, residue, left_neighbour, right_neighbour)
 
     def calc_weighted_desc(avg_desc, weight, desc):
         for key, value in desc.items():
@@ -244,24 +255,161 @@ def query_average(
                 sub_desc = avg_desc.setdefault(key, {})
                 calc_weighted_desc(sub_desc, weight, value)
             else:
-                avg_desc[key] = avg_desc.get(key, 0) + value * weight
+                avg_desc[key] = float(avg_desc.get(key, 0) + value * weight)
 
     with sqlite3.connect(sql_path) as conn:
         cur = conn.cursor()
         cur.execute(
-            """SELECT prob, descriptors FROM rotamers_data WHERE res = ?
+            """SELECT prob, phi, psi, descriptors FROM rotamers_data WHERE res = ?
             AND (? IS NULL OR charge = ?)
             AND (? IS NULL OR tautomer IS ?)""",
             (residue, charge, charge, tautomer, tautomer),
         )
 
         avg_descriptors = {}
-        for prob_sidechain, desc_str in cur.fetchall():
-            prob_backbone = (
-                1  # replace by the P(phi,psi) once access to the NDRD library
-            )
+        for prob_sidechain, phi, psi, desc_str in cur.fetchall():
+
+            # Fetch normalised backbone probability for the given phi & psi
+            prob_backbone = backbone_probs.loc[
+                (backbone_probs["phi"] == phi) & (backbone_probs["psi"] == psi),
+                "norm_prob",
+            ].values[0]
+
             prob_rotamer = prob_sidechain * prob_backbone
             descriptors = json.loads(desc_str)
             calc_weighted_desc(avg_descriptors, prob_rotamer, descriptors)
 
         return avg_descriptors
+
+
+def parse_ndrd(
+    ndrd_csv: str | Path,
+    residue: str,
+    left_neighbour: str | None = None,
+    right_neighbour: str | None = None,
+) -> pd.DataFrame:
+    """Parse the NDRD csv file to get the backbone probabilities for a given residue with or without neighbours.
+    Args:
+        ndrd_csv: path to the csv file with NDRD data
+        residue: three letter code of the amino acid type
+        left_neighbour: three letter code of the amino acid left from `residue`
+        right_neighbour: three letter code of the amino acid right from `residue`
+    Returns:
+        Normalised backbone probabilities for each phi,psi of the given residue
+            - phi,psi incremented by 10° from -180° to 170°
+            - probability either independent of neighbours or given one or both neighbours
+            - treat trans and cis prolines together
+    """
+    ndrd = pd.read_csv(ndrd_csv)
+
+    # Keep only the phi,psi incremented by 10° (increment of 10° in rotamer library while 5° in NDRD)
+    ndrd_step_10 = ndrd.loc[(ndrd["phi"] % 10 == 0) & (ndrd["psi"] % 10 == 0)].copy()
+
+    # Treat trans (PRO) and cis (CPR) prolines together
+    residue = residue.upper()
+    target_res = [residue] if residue != "PRO" else [residue, "CPR"]
+
+    # Get backbone probabilities from the NDRD library for a given residue...
+
+    phi_vals = ndrd_step_10["phi"].unique()
+    psi_vals = ndrd_step_10["psi"].unique()
+    phis = np.repeat(phi_vals, len(psi_vals))
+    psis = np.tile(psi_vals, len(phi_vals))
+
+    def select_rows(res, pos, neigh):
+        sub_df = ndrd_step_10.loc[
+            (ndrd_step_10["res"].isin(res))
+            & (ndrd_step_10["neighbour_pos"] == pos)
+            & (ndrd_step_10["neighbour_res"] == neigh)
+        ].copy()
+
+        # For proline, sum CPR and PRO probabilities
+        if "CPR" in res:
+            prob_pro = (
+                sub_df[sub_df["res"] == "PRO"]
+                .pivot_table(index="phi", columns="psi", values="prob", aggfunc="first")
+                .reindex(index=phi_vals, columns=psi_vals)
+                .to_numpy()
+            )
+            prob_cpr = (
+                sub_df[sub_df["res"] == "CPR"]
+                .pivot_table(index="phi", columns="psi", values="prob", aggfunc="first")
+                .reindex(index=phi_vals, columns=psi_vals)
+                .to_numpy()
+            )
+            prob_pro_cpr = prob_pro + prob_cpr
+            log_pro_cpr = -np.log(prob_pro_cpr)
+            sub_df = pd.DataFrame(
+                {
+                    "res": "PRO",
+                    "neighbour_pos": pos,
+                    "neighbour_res": neigh,
+                    "phi": phis,
+                    "psi": psis,
+                    "prob": prob_pro_cpr.ravel(),
+                    "log_prob": log_pro_cpr.ravel(),
+                }
+            )
+
+        return sub_df
+
+    if left_neighbour is None or right_neighbour is None:
+        # ... independent of neighbours
+        if left_neighbour is None and right_neighbour is None:
+            position = "right"
+            neighbour = "ALL"
+        # ... given only right neighbour
+        elif left_neighbour is None:
+            position = "right"
+            neighbour = right_neighbour
+        # ... given only left neighbour
+        else:
+            position = "left"
+            neighbour = left_neighbour
+        backbone_probs = select_rows(target_res, position, neighbour)
+
+        # Normalise
+        backbone_probs["norm_prob"] = (
+            backbone_probs["prob"] / backbone_probs["prob"].sum()
+        )
+
+    # ... given both neighbours
+    else:
+        # Calculate probabilities for triplet (Centre, Left, Right)
+        # with log p(C,L,R) = log p(C,L) + log p(C,R) - log p(C,right=ALL)
+        sub_CL = select_rows(target_res, "left", left_neighbour)
+        sub_CR = select_rows(target_res, "right", right_neighbour)
+        sub_CALL = select_rows(target_res, "right", "ALL")
+        log_CL = (
+            -sub_CL.pivot_table(
+                index="phi", columns="psi", values="log_prob", aggfunc="first"
+            )
+            .reindex(index=phi_vals, columns=psi_vals)
+            .to_numpy()
+        )
+        log_CR = (
+            -sub_CR.pivot_table(
+                index="phi", columns="psi", values="log_prob", aggfunc="first"
+            )
+            .reindex(index=phi_vals, columns=psi_vals)
+            .to_numpy()
+        )
+        log_CRA = (
+            -sub_CALL.pivot_table(
+                index="phi", columns="psi", values="log_prob", aggfunc="first"
+            )
+            .reindex(index=phi_vals, columns=psi_vals)
+            .to_numpy()
+        )
+        log_p_CLR = log_CL + log_CR - log_CRA
+        p_CLR = np.exp(log_p_CLR)
+
+        # Normalise
+        p_norm = p_CLR / float(p_CLR.sum())
+
+        # Save in dataframe
+        backbone_probs = pd.DataFrame(
+            {"phi": phis, "psi": psis, "norm_prob": p_norm.ravel()}
+        )
+
+    return backbone_probs
