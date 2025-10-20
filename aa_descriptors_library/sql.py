@@ -2,6 +2,9 @@ from pathlib import Path
 import sqlite3
 import json
 import numpy as np
+import pandas as pd
+
+from aa_descriptors_library.constants import SQL_PATH
 
 
 def init_sql_db(db_path: str | Path) -> None:
@@ -109,3 +112,44 @@ def get_xyz_from_sql(
     elements = np.array([row[0] for row in rows])
     coords = np.array([[row[1], row[2], row[3]] for row in rows], dtype=float)
     return elements, coords
+
+
+def get_descriptors(
+    res: str | None = None,
+    charge: int | None = None,
+    tautomer: str | None = None,
+    sql_path: str | Path | None = None,
+) -> pd.DataFrame:
+    """Get all descriptors from the SQL database, optionally filtered by residue, charge and tautomer.
+    Args:
+        residue: three letter code of the amino acid type
+        charge: charge of the target residue
+        tautomer: tautomer of the target residue if applicable ("D" or "E" for histidine)
+        sql_path: path to the SQL database file
+    Returns:
+        DataFrame with rotamer IDs, residue, charge, tautomer and descriptors
+    """
+    if sql_path is None:
+        sql_path = SQL_PATH
+
+    query = """SELECT rotamer_id, res, charge, tautomer, descriptors FROM rotamers_data
+            WHERE (? IS NULL OR res = ?)
+            AND (? IS NULL OR charge = ?)
+            AND (? IS NULL OR tautomer IS ?)"""
+    params = (res, res, charge, charge, tautomer, tautomer)
+    with sqlite3.connect(str(sql_path)) as con:
+        con.execute("PRAGMA journal_mode=WAL")
+        con.execute("PRAGMA synchronous=NORMAL")
+        base = pd.read_sql_query(query, con, params=params)
+
+    descriptors = [
+        json.loads(d) if isinstance(d, (str, bytes)) and d else {}
+        for d in base["descriptors"]
+    ]
+    df = pd.DataFrame(descriptors, index=base["rotamer_id"])
+    df.index.name = "rotamer_id"
+    df.insert(0, "residue", base["res"].values)
+    df.insert(1, "charge", base["charge"].values)
+    df.insert(2, "tautomer", base["tautomer"].values)
+
+    return df
