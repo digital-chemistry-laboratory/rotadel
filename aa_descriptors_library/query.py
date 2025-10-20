@@ -9,11 +9,11 @@ import pandas as pd
 from typing_extensions import deprecated
 
 from aa_descriptors_library.sql import get_xyz_from_sql
-from aa_descriptors_library.constants import NUMBER_OF_CHI_ANGLES, THREE_TO_ONE_AA
-
-SQL_PATH = "/cluster/project/jorner/lajacot/projects/aa-descriptors-library/data/merged_whole_filtered_library_sql.db"
-NDRD_PATH = (
-    "/cluster/project/jorner/lajacot/projects/aa-descriptors-library/data/ndrd.csv"
+from aa_descriptors_library.constants import (
+    NDRD_PATH,
+    NUMBER_OF_CHI_ANGLES,
+    SQL_PATH,
+    THREE_TO_ONE_AA,
 )
 
 

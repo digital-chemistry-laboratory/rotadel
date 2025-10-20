@@ -1,3 +1,9 @@
+SQL_PATH = "/cluster/project/jorner/lajacot/projects/aa-descriptors-library/data/merged_whole_filtered_library_sql.db"
+
+NDRD_PATH = (
+    "/cluster/project/jorner/lajacot/projects/aa-descriptors-library/data/ndrd.csv"
+)
+
 NUMBER_OF_CHI_ANGLES = {
     "C": 1,
     "S": 1,
