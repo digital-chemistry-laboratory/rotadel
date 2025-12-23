@@ -4,6 +4,10 @@ from morfeus.typing import Array1DStr, Array2DFloat
 from typing import Any
 from rdkit.Chem import MolFromXYZBlock, rdDetermineBonds
 
+from aa_descriptors_library.constants import (
+    NON_PERMUTABLE_INDICES_SIDECHAIN,
+    THREE_TO_ONE_AA,
+)
 from aa_descriptors_library.utils import xyz_string
 
 
@@ -33,23 +37,33 @@ def move_central_atom(
     return new_coords
 
 
-def reindex_sidechain(
-    morfeus_dict: dict[int, np.float64], is_pro: bool = False
+def clean_atomic_descriptors(
+    morfeus_dict: dict[int, np.float64],
+    res: str | None = None,
+    is_bond_order: bool = False,
 ) -> dict[int, np.float64]:
-    """Rewrite the dictionary returned by Morfeus to remove the H dummy atom (first entry) and reindex in 0-base.
+    """Rewrite the dictionary returned by Morfeus to remove the permutable hydrogens.
     Args:
         morfeus_descriptor: dictionary of the atomic descriptor calculated by Morfeus
-        is_pro: whether the a.a. is proline.
-            If true, both first and last atoms are Hs replacing the backbone and will be deleted.
+        res: three-letter code of the amino acid residue
+        is_bond_order: whether the descriptor is bond orders
     Returns:
-        Dictionary with only the sidechain atoms and 0-indexed
+        Dictionary with only the non-permutable sidechain atoms (1-indexed)
     """
-    output_dict = {
-        int(idx) - 1: value for idx, value in morfeus_dict.items() if int(idx) != 1
-    }
-    if is_pro:
-        last_idx = max(output_dict.keys())
-        output_dict.pop(last_idx, None)
+    indices_to_keep = NON_PERMUTABLE_INDICES_SIDECHAIN[THREE_TO_ONE_AA[res.upper()]]
+    if is_bond_order:
+        output_dict = {}
+        for key, value in morfeus_dict.items():
+            atom_1, atom_2 = map(int, key.split(", "))
+            if atom_1 in indices_to_keep and atom_2 in indices_to_keep:
+                output_dict[key] = value
+    else:
+        output_dict = {
+            int(idx): value
+            for idx, value in morfeus_dict.items()
+            if int(idx) in indices_to_keep
+        }
+
     return output_dict
 
 
@@ -58,7 +72,7 @@ def calc_descriptors(
     sidechain_coords: Array2DFloat,
     charge: int = 0,
     solvent: str = "ether",
-    is_pro: bool = False,
+    res: str | None = None,
 ) -> dict[str, Any]:
     """Calculate stereo-electronic descriptors on optimised sidechain.
     Args:
@@ -66,7 +80,7 @@ def calc_descriptors(
         sidechain_coords: coordinates of the optimised sidechain-H geometry [Å]
         charge: charge of the sidechain-H geometry
         solvent: implicit solvent for the optimisation
-        is_pro: whether the a.a. is proline
+        res: three-letter code of the amino acid residue
     Returns:
         Dictionary of the calculated descriptors
     """
@@ -125,38 +139,26 @@ def calc_descriptors(
     descriptors["global_electrophilicity"] = xtb.get_global_descriptor(
         "electrophilicity"
     )
-    descriptors["local_nucleophilicity"] = reindex_sidechain(
-        xtb.get_fukui("local_nucleophilicity"), is_pro=is_pro
+    descriptors["local_nucleophilicity"] = clean_atomic_descriptors(
+        xtb.get_fukui("local_nucleophilicity"), res=res
     )
-    descriptors["local_electrophilicity"] = reindex_sidechain(
-        xtb.get_fukui("local_electrophilicity"), is_pro=is_pro
+    descriptors["local_electrophilicity"] = clean_atomic_descriptors(
+        xtb.get_fukui("local_electrophilicity"), res=res
     )
-    descriptors["fukui_minus"] = reindex_sidechain(
-        xtb.get_fukui("nucleophilicity"), is_pro=is_pro
+    descriptors["fukui_minus"] = clean_atomic_descriptors(
+        xtb.get_fukui("nucleophilicity"), res=res
     )
-    descriptors["fukui_plus"] = reindex_sidechain(
-        xtb.get_fukui("electrophilicity"), is_pro=is_pro
+    descriptors["fukui_plus"] = clean_atomic_descriptors(
+        xtb.get_fukui("electrophilicity"), res=res
     )
-    descriptors["partial_charges"] = reindex_sidechain(xtb.get_charges(), is_pro=is_pro)
-
-    # Bond orders
-    xyz_str = xyz_string(sidechain_el, sidechain_coords)
-    mol = MolFromXYZBlock(xyz_str)
-    rdDetermineBonds.DetermineConnectivity(mol)
-    bond_indices = [
-        (bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()) for bond in mol.GetBonds()
-    ]
-    bo = {}
-    for atom_1, atom_2 in bond_indices:
-        # Skip the dummy H replacing the C alpha
-        if atom_1 == 0 or atom_2 == 0:
-            continue
-        # If proline, skip also the last H replacing the backbone N
-        if is_pro and (atom_1 == 10 or atom_2 == 10):
-            continue
-        bo[f"{atom_1}, {atom_2}"] = xtb.get_bond_order(
-            atom_1 + 1, atom_2 + 1
-        )  # 1-indexed for Morfeus
-    descriptors["bond_orders"] = bo
+    descriptors["partial_charges"] = clean_atomic_descriptors(
+        xtb.get_charges(), res=res
+    )
+    bond_orders = xtb.get_bond_orders()
+    descriptors["bond_orders"] = clean_atomic_descriptors(
+        {f"{k[0]}, {k[1]}": v for k, v in bond_orders.items()},
+        res=res,
+        is_bond_order=True,
+    )
 
     return descriptors
