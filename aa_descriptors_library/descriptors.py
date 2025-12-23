@@ -2,13 +2,11 @@ import numpy as np
 from morfeus import BuriedVolume, SASA, Sterimol, ConeAngle, Dispersion, XTB
 from morfeus.typing import Array1DStr, Array2DFloat
 from typing import Any
-from rdkit.Chem import MolFromXYZBlock, rdDetermineBonds
 
 from aa_descriptors_library.constants import (
     NON_PERMUTABLE_INDICES_SIDECHAIN,
     THREE_TO_ONE_AA,
 )
-from aa_descriptors_library.utils import xyz_string
 
 
 def move_central_atom(
