@@ -185,8 +185,9 @@ def query_average(
     if ndrd_path is None:
         ndrd_path = NDRD_PATH
 
+    residue = residue.upper()
     # Histidine requires charge and tautomer info for averaging atomic descriptors because atom mapping varies
-    if residue.upper() == "HIS" and (charge is None or tautomer is None):
+    if residue == "HIS" and (charge is None or tautomer is None):
         raise ValueError("For histidine, both charge and tautomer must be specified.")
 
     backbone_probs = parse_ndrd(ndrd_path, residue, left_neighbour, right_neighbour)
