@@ -30,30 +30,30 @@ def parse_args():
     )
     parser.add_argument(
         "-o",
-        "--output_db",
+        "--output_path",
         type=Path,
-        help="optional path for output database file (.db or .json). \
+        help="optional path for output database file (.db or .json) or folder. \
             If folder, individual rotamer_id.json will be created inside. \
             If not specified, output will be printed to stdout.",
         default=None,
     )
     args = parser.parse_args()
 
-    return args.rotamer_id, args.angles_json, args.output_db
+    return args.rotamer_id, args.angles_json, args.output_path
 
 
 def main(
     rotamer_id: str,
     angles_json: PathLike | str,
     run_path: PathLike | str | None = None,
-    output_db: PathLike | str | None = None,
+    output_path: PathLike | str | None = None,
 ) -> None:
     """Optimise rotamer geometry and calculate descriptors on it.
     Args:
         rotamer_id: ID of the rotamer with species information
         angles_json: json file with the angles extracted from the Dunbrack library
         run_path: path of folder in which to perform the full optimisation process
-        output_db: path for output database file
+        output_path: path for output database file or folder
             If .db file, write rotamer output to SQL database
             If .json file, write rotamer output to it.
             If folder, create individual rotamer_id.json inside.
@@ -62,10 +62,10 @@ def main(
         None, writes data to database or stdout
     """
 
-    if output_db is not None:
-        output_db = Path(output_db)
-        if output_db.suffix == ".db" and not output_db.exists():
-            init_sql_db(output_db)
+    if output_path is not None:
+        output_path = Path(output_path)
+        if output_path.suffix == ".db" and not output_path.exists():
+            init_sql_db(output_path)
 
     with open(angles_json, "r") as f:
         dunbrack_all_rotamers = json.load(f)
@@ -91,10 +91,10 @@ def main(
             # Check if the rotamer ID or sidechain already exists in the database
             rotamer_already_exists = False
             sidechain_already_calculated = False
-            if output_db and output_db.exists() and output_db.is_file():
-                if output_db.suffix == ".db":
-                    with lock(output_db):
-                        with sqlite3.connect(output_db) as conn:
+            if output_path and output_path.exists() and output_path.is_file():
+                if output_path.suffix == ".db":
+                    with lock(output_path):
+                        with sqlite3.connect(output_path) as conn:
                             rotamer_already_exists = (
                                 conn.execute(
                                     "SELECT 1 FROM rotamers_data WHERE rotamer_id = ?",
@@ -108,15 +108,15 @@ def main(
                                     rotamer.load_existing_sidechain_sql(conn)
                                 )
 
-                elif output_db.suffix == ".json":
-                    with lock(output_db):
-                        with open(output_db, "r") as f:
+                elif output_path.suffix == ".json":
+                    with lock(output_path):
+                        with open(output_path, "r") as f:
                             content = json.load(f)
                         rotamer_already_exists = rotamer_id in content
 
                     if not rotamer_already_exists:
                         sidechain_already_calculated = (
-                            rotamer.load_existing_sidechain_json(output_db)
+                            rotamer.load_existing_sidechain_json(output_path)
                         )
 
             if not rotamer_already_exists:
@@ -131,26 +131,26 @@ def main(
                     rotamer.calc_descriptors()
 
                 # Save in database or print out
-                if output_db is None:
+                if output_path is None:
                     sys.stdout.write(json.dumps(rotamer.to_dict(), indent=4))
-                elif output_db.suffix == ".db":
-                    with lock(output_db):
-                        with sqlite3.connect(output_db) as conn:
+                elif output_path.suffix == ".db":
+                    with lock(output_path):
+                        with sqlite3.connect(output_path) as conn:
                             rotamer.to_sql(conn)
-                elif output_db.suffix == ".json":
-                    with lock(output_db):
-                        rotamer.to_json(output_db)
-                elif output_db.suffix == "":
-                    if not output_db.exists():
-                        output_db.mkdir(parents=True)
-                    individual_output_json = output_db / f"{rotamer_id}.json"
+                elif output_path.suffix == ".json":
+                    with lock(output_path):
+                        rotamer.to_json(output_path)
+                elif output_path.suffix == "":
+                    if not output_path.exists():
+                        output_path.mkdir(parents=True)
+                    individual_output_json = output_path / f"{rotamer_id}.json"
                     if individual_output_json.exists():
                         individual_output_json.unlink()
                     rotamer.to_json(individual_output_json)
                 else:
                     raise ValueError(
-                        f"The given argument `output_db` must be either: a .db file, a .json file, or be a folder. "
-                        f"You gave: {output_db}"
+                        f"The given argument `output_path` must be either: a .db file, a .json file, or be a folder. "
+                        f"You gave: {output_path}"
                     )
 
     except Exception:
@@ -160,5 +160,5 @@ def main(
 
 
 if __name__ == "__main__":
-    rotamer_id, angles_json, output_db = parse_args()
-    main(rotamer_id, angles_json, output_db=output_db)
+    rotamer_id, angles_json, output_path = parse_args()
+    main(rotamer_id, angles_json, output_path=output_path)
