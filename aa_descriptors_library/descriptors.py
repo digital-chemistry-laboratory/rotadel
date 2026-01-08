@@ -127,12 +127,11 @@ def calc_descriptors(
     xtb = XTB(sidechain_el, sidechain_coords, charge=charge, solvent=solvent)
     descriptors["homo"] = xtb.get_homo()
     descriptors["lumo"] = xtb.get_lumo()
-    ea = xtb.get_ea()
-    ip = xtb.get_ip(corrected=True)
-    descriptors["electron_affinity"] = ea
-    descriptors["ionization_potential"] = ip
-    descriptors["electronegativity"] = (ip + ea) / 2
+    descriptors["electron_affinity"] = xtb.get_ea()
+    descriptors["ionization_potential"] = xtb.get_ip()
+    descriptors["electronegativity"] = xtb.get_electronegativity()
     descriptors["hardness"] = xtb.get_hardness()
+    descriptors["dipole"] = xtb.get_dipole_moment()
     descriptors["global_nucleophilicity"] = xtb.get_global_descriptor("nucleophilicity")
     descriptors["global_electrophilicity"] = xtb.get_global_descriptor(
         "electrophilicity"
