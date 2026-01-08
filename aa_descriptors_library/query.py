@@ -98,6 +98,9 @@ def query_closest(
             if (chi2, chi3, chi4) in already_calculated:
                 continue
             already_calculated.add((chi2, chi3, chi4))
+            # Ignore chi3 from Dunbrack library for proline as normally defined with 2 chis
+            if target_name == "PRO":
+                chi3 = None
             chis_dist = distance_angles(
                 [target_chi2, target_chi3, target_chi4], [chi2, chi3, chi4]
             )
