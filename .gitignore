@@ -22,9 +22,11 @@ HT*
 logs
 
 ### Project related
-# All data folders
+# Data
 Dunbrack_library
 data*/
+Shuffle_Dataset_MD_Centroid_PDBs*
+*csv
 # All test folders and files
 test*
 # Analysis folder
