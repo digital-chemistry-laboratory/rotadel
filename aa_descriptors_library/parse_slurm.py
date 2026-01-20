@@ -37,6 +37,16 @@ def main(slurm_folder, run_name=None):
         ),
         "xtb_failed": re.compile(r"RuntimeError: xtb calculation failed"),
         "ConeAngle": re.compile(r"ConeAngle"),
+        "failed_checks_whole": re.compile(
+            r"StructureProblemError: Optimised whole rotamer failed checks"
+        ),
+        "failed_checks_sidechain": re.compile(
+            r"StructureProblemError: Optimised sidechain-H failed checks"
+        ),
+        "DetermineBonds": re.compile(
+            r"rdkit\.Chem\.rdDetermineBonds\.DetermineBonds\(NoneType\)"
+        ),
+        "charge_not_matching": re.compile(r"ValueError: Final molecular charge"),
     }
 
     # Parse slurm files
@@ -85,6 +95,10 @@ def main(slurm_folder, run_name=None):
         ">_None",
         "xtb_failed",
         "ConeAngle",
+        "failed_checks_whole",
+        "failed_checks_sidechain",
+        "DetermineBonds",
+        "charge_not_matching",
         "Other",
     ]
 

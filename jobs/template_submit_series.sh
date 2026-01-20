@@ -23,7 +23,7 @@ output_path="../data/batches_sql_output/rotamers_sql_${batch_number}.db"
 # Run
 echo "--- Run for ${input_file} ---"
 while IFS= read -r line || [ -n "$line" ]; do
-    python -m aa_descriptors_library.main_one_rotamer $line ${angles_json} -o ${output_path}
+    python -m aa_descriptors_library.main_one_rotamer $line ${angles_json} -o ${output_path} --rerun_failed
 done < ${input_file}
 
 # Calculate total run time

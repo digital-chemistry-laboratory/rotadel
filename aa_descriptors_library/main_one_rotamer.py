@@ -37,9 +37,21 @@ def parse_args():
             If not specified, output will be printed to stdout.",
         default=None,
     )
+    parser.add_argument(
+        "-r",
+        "--rerun_failed",
+        action="store_true",
+        default=False,
+        help="rerun geometry optimisations on failure",
+    )
     args = parser.parse_args()
 
-    return args.rotamer_id, args.angles_json, args.output_path
+    return (
+        args.rotamer_id,
+        args.angles_json,
+        args.output_path,
+        args.rerun_failed,
+    )
 
 
 def main(
@@ -47,6 +59,7 @@ def main(
     angles_json: PathLike | str,
     run_path: PathLike | str | None = None,
     output_path: PathLike | str | None = None,
+    rerun_failed: bool = False,
 ) -> None:
     """Optimise rotamer geometry and calculate descriptors on it.
     Args:
@@ -58,6 +71,7 @@ def main(
             If .json file, write rotamer output to it.
             If folder, create individual rotamer_id.json inside.
             If None, print output to stdout.
+        rerun_failed: whether to rerun geometry optimisations on failure
     Returns:
         None, writes data to database or stdout
     """
@@ -125,7 +139,7 @@ def main(
                         run_folder.mkdir(parents=True)
 
                     # Optimise both whole rotamer and sidechain-H
-                    rotamer.opt_geometries()
+                    rotamer.opt_geometries(rerun_failed=rerun_failed)
 
                     # Calculate descriptors on sidechain-H
                     rotamer.calc_descriptors()
@@ -160,5 +174,10 @@ def main(
 
 
 if __name__ == "__main__":
-    rotamer_id, angles_json, output_path = parse_args()
-    main(rotamer_id, angles_json, output_path=output_path)
+    rotamer_id, angles_json, output_path, rerun_failed = parse_args()
+    main(
+        rotamer_id,
+        angles_json,
+        output_path=output_path,
+        rerun_failed=rerun_failed,
+    )

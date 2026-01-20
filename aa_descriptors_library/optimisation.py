@@ -1,16 +1,19 @@
-from os import PathLike
-from pathlib import Path
-import subprocess
-import shutil
+from Bio.PDB import PDBIO
 from morfeus import read_xyz
 from morfeus.typing import Array1DStr, Array2DFloat
-from typing import Any
-from PeptideBuilder import Geometry
-import PeptideBuilder
-from Bio.PDB import PDBIO
 from openmm.app import PDBFile, Modeller
 from openbabel import pybel
 import os
+from os import PathLike
+from pathlib import Path
+from PeptideBuilder import Geometry
+import PeptideBuilder
+from rdkit.Chem import DetectChemistryProblems, MolFromXYZFile
+from rdkit.Chem.rdDetermineBonds import DetermineBonds
+from rdkit.Chem.rdmolops import GetMolFrags
+import shutil
+import subprocess
+from typing import Any
 
 from aa_descriptors_library.utils import get_atom_count
 from aa_descriptors_library.constants import NUMBER_OF_CHI_ANGLES
@@ -417,18 +420,22 @@ def get_opt_structures(
     charge: int,
     run_folder: PathLike | str,
     rotamer_xyz: PathLike | str,
+    check: bool = True,
+    rotamer_id: str = "",
 ) -> tuple[
     Array1DStr,
     Array2DFloat,
     Array1DStr,
     Array2DFloat,
 ]:
-    """Get the optimised geometries of side chain (with the backbone being replaced by an H) and rotamer
+    """Get the optimised geometries of side chain (with the backbone being replaced by an H) and rotamer.
     Args:
         dunbrack_data: data with angles extracted from the Dunbrack library
         charge: charge of the rotamer
         run_folder: path of folder in which to perform the full optimisation process
         rotamer_xyz: xyz file of the whole rotamer to optimise
+        check: whether to check the fragmentation and chemistry problems of the optimised structures
+        rotamer_id: ID of the rotamer (used for error messages if `check` is True)
     Returns:
         el_whole, coord_whole, el_sidechain, coord_sidechain: elements and coordinates of the optimised structures
     """
@@ -453,6 +460,16 @@ def get_opt_structures(
         charge=charge,
         fc=1.0,
     )
+
+    if check:
+        whole_problems = has_structure_problems(
+            whole_folder / "xtbopt.xyz",
+            charge=charge,
+        )
+        if whole_problems:
+            raise StructureProblemError(
+                f"Wrong structure for the {rotamer_id} whole rotamer: {whole_problems}."
+            )
 
     # Replace backbone by H in optimised rotamer
     sidechain_folder = Path(run_folder) / "sidechain-H"
@@ -493,6 +510,16 @@ def get_opt_structures(
         fc=5.0,
     )
 
+    if check:
+        sidechain_problems = has_structure_problems(
+            sidechain_folder / "xtbopt.xyz",
+            charge=charge,
+        )
+        if sidechain_problems:
+            raise StructureProblemError(
+                f"Wrong structure for the {rotamer_id} sidechain-H: {sidechain_problems}."
+            )
+
     # Save the optimised sidechain-H and whole rotamer in dictionary
     el_whole, coord_whole = read_xyz(whole_folder / "xtbopt.xyz")
     el_sidechain, coord_sidechain = read_xyz(sidechain_folder / "xtbopt.xyz")
@@ -503,3 +530,39 @@ def get_opt_structures(
         el_sidechain,
         coord_sidechain,
     )
+
+
+def has_structure_problems(
+    xyz_file: PathLike | str,
+    charge: int,
+    expected_nb_frags: int = 1,
+) -> str | None:
+    """Check if a structure is wrong.
+    Args:
+        xyz_file: path to the xyz file to check
+        charge: charge of the molecule
+        expected_nb_frags: expected number of fragments in the structure
+    Returns:
+        An message describing the problem if:
+            - different number of fragments than expected
+            - chemistry problems detected by RDKit
+        Otherwise, returns None.
+    """
+    m = MolFromXYZFile(str(xyz_file))
+    DetermineBonds(m, charge=charge)
+
+    frags = GetMolFrags(m, sanitizeFrags=False)
+    if len(frags) != expected_nb_frags:
+        return f"{len(frags)} fragments instead of the expected {expected_nb_frags}"
+
+    problems = DetectChemistryProblems(m)
+    if len(problems) > 0:
+        return f"RDKit detected problems: {problems}"
+
+    return None
+
+
+class StructureProblemError(RuntimeError):
+    """Raised when an optimised structure fails the checks."""
+
+    pass

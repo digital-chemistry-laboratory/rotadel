@@ -5,7 +5,7 @@ import json
 import sqlite3
 import numpy as np
 
-from aa_descriptors_library.optimisation import start_rotamer_xyz, get_opt_structures
+from aa_descriptors_library.optimisation import get_opt_structures, start_rotamer_xyz
 from aa_descriptors_library.descriptors import calc_descriptors
 
 
@@ -112,25 +112,41 @@ class Rotamer:
 
         return True
 
-    def opt_geometries(self) -> None:
+    def opt_geometries(self, rerun_failed: bool = False) -> None:
         """Optimise the rotamer and sidechain-H geometries."""
         starting_rotamer_xyz = self._run_path / "rotamer_start.xyz"
-        start_rotamer_xyz(
-            dunbrack_data=self._dunbrack_data,
-            xyz_output=starting_rotamer_xyz,
-            charge=self._charge,
-            tautomer=self._tautomer,
-        )
-        el_whole, coord_whole, el_sidechain, coord_sidechain = get_opt_structures(
-            dunbrack_data=self._dunbrack_data,
-            charge=self._charge,
-            run_folder=self._run_path,
-            rotamer_xyz=starting_rotamer_xyz,
-        )
-        self._rotamer_elements = el_whole
-        self._rotamer_coordinates = coord_whole
-        self._sidechainH_elements = el_sidechain
-        self._sidechainH_coordinates = coord_sidechain
+        max_attempts = 3 if rerun_failed else 1
+
+        for attempt in range(max_attempts):
+            start_rotamer_xyz(
+                dunbrack_data=self._dunbrack_data,
+                xyz_output=starting_rotamer_xyz,
+                charge=self._charge,
+                tautomer=self._tautomer,
+            )
+
+            try:
+                (
+                    el_whole,
+                    coord_whole,
+                    el_sidechain,
+                    coord_sidechain,
+                ) = get_opt_structures(
+                    dunbrack_data=self._dunbrack_data,
+                    charge=self._charge,
+                    run_folder=self._run_path,
+                    rotamer_xyz=starting_rotamer_xyz,
+                    rotamer_id=self._key,
+                )
+            except Exception:
+                if attempt == max_attempts - 1:
+                    raise
+                continue
+
+            self._rotamer_elements = el_whole
+            self._rotamer_coordinates = coord_whole
+            self._sidechainH_elements = el_sidechain
+            self._sidechainH_coordinates = coord_sidechain
 
     def calc_descriptors(self) -> None:
         """Calculate the descriptors on the sidechain-H."""
