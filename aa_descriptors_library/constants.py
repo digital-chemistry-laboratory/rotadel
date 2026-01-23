@@ -70,3 +70,35 @@ NON_PERMUTABLE_INDICES_SIDECHAIN = {
     "W": [2, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
     "Y": [2, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
 }
+
+BACKBONE_SMARTS = {
+    "zwitterion": "[NH3+][CH]({R})[C](=[O])[O-]",
+    "neutral": "[NH2][CH]({R})[C](=[O])[OH]",
+    "pro_zwitterion": "[NH2+]1{R}[CH]1[C](=[O])[O-]",
+    "pro_neutral": "[NH]1{R}[CH]1[C](=[O])[OH]",
+}
+
+SIDECHAIN_SMARTS = {
+    "C": {0: "[CH2][SH]", -1: "[CH2][S-]"},
+    "D": {0: "[CH2][C](=[O])[OH]", -1: "[CH2][C](=[O])[O-]"},
+    "E": {0: "[CH2][CH2][C](=[O])[OH]", -1: "[CH2][CH2][C](=[O])[O-]"},
+    "F": {0: "[CH2][c]1[cH][cH][cH][cH][cH]1"},
+    "H": {
+        0: {"D": "[CH2][c]1[nH][cH][n][cH]1", "E": "[CH2][c]1[n][cH][nH][cH]1"},
+        -1: "[CH2][c]1[n][cH][n][cH]1",
+        +1: "[CH2][c]1[nH][cH][nH][cH]1",
+    },
+    "I": {0: "[CH]([CH3])[CH2][CH3]"},
+    "K": {0: "[CH2][CH2][CH2][CH2][NH2]", +1: "[CH2][CH2][CH2][CH2][NH3+]"},
+    "L": {0: "[CH2][CH]([CH3])[CH3]"},
+    "M": {0: "[CH2][CH2][S][CH3]"},
+    "N": {0: "[CH2][C](=[O])[NH2]"},
+    "P": {0: "[CH2][CH2][CH2]"},
+    "Q": {0: "[CH2][CH2][C](=[O])[NH2]"},
+    "R": {+1: "[CH2][CH2][CH2][NH][C](=[NH2+])[NH2]"},
+    "S": {0: "[CH2][OH]"},
+    "T": {0: "[CH]([CH3])[OH]"},
+    "V": {0: "[CH]([CH3])[CH3]"},
+    "W": {0: "[CH2][c]1[cH][nH][c]2[cH][cH][cH][cH][c]12"},
+    "Y": {0: "[CH2][c]1[cH][cH][c]([OH])[cH][cH]1"},
+}

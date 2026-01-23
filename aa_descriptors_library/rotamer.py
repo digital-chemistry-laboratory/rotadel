@@ -136,6 +136,7 @@ class Rotamer:
                     charge=self._charge,
                     run_folder=self._run_path,
                     rotamer_xyz=starting_rotamer_xyz,
+                    tautomer=self._tautomer,
                     rotamer_id=self._key,
                 )
             except Exception:

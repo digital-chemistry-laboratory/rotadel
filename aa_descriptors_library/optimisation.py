@@ -8,6 +8,7 @@ from os import PathLike
 from pathlib import Path
 from PeptideBuilder import Geometry
 import PeptideBuilder
+from rdkit import Chem
 from rdkit.Chem import DetectChemistryProblems, MolFromXYZFile
 from rdkit.Chem.rdDetermineBonds import DetermineBonds
 from rdkit.Chem.rdmolops import GetMolFrags
@@ -16,7 +17,11 @@ import subprocess
 from typing import Any
 
 from aa_descriptors_library.utils import get_atom_count
-from aa_descriptors_library.constants import NUMBER_OF_CHI_ANGLES
+from aa_descriptors_library.constants import (
+    BACKBONE_SMARTS,
+    NUMBER_OF_CHI_ANGLES,
+    SIDECHAIN_SMARTS,
+)
 from aa_descriptors_library import config
 
 
@@ -421,6 +426,7 @@ def get_opt_structures(
     run_folder: PathLike | str,
     rotamer_xyz: PathLike | str,
     check: bool = True,
+    tautomer: str | None = None,
     rotamer_id: str = "",
 ) -> tuple[
     Array1DStr,
@@ -434,7 +440,8 @@ def get_opt_structures(
         charge: charge of the rotamer
         run_folder: path of folder in which to perform the full optimisation process
         rotamer_xyz: xyz file of the whole rotamer to optimise
-        check: whether to check the fragmentation and chemistry problems of the optimised structures
+        check: whether to check for problems in the optimised structures
+        tautomer: tautomer for histidine (used for structure checking if `check` is True)
         rotamer_id: ID of the rotamer (used for error messages if `check` is True)
     Returns:
         el_whole, coord_whole, el_sidechain, coord_sidechain: elements and coordinates of the optimised structures
@@ -452,6 +459,7 @@ def get_opt_structures(
     whole_folder.mkdir(parents=True)
 
     dihedral_constraints = gen_dihedral_constraints(dunbrack_data)
+    letter = dunbrack_data["letter"]
 
     run_constraint_xtb(
         xyz_file=rotamer_xyz,
@@ -465,6 +473,8 @@ def get_opt_structures(
         whole_problems = has_structure_problems(
             whole_folder / "xtbopt.xyz",
             charge=charge,
+            aa_letter=letter,
+            tautomer=tautomer,
         )
         if whole_problems:
             raise StructureProblemError(
@@ -495,7 +505,6 @@ def get_opt_structures(
         # Hs 3 and 4 also on beta C
         fixed_atoms = [2] + list(range(5, last_atom + 1))
     # Dihedral constraint for the H to optimise is added
-    letter = dunbrack_data["letter"]
     if letter in ["C", "S", "T", "V"]:
         sidechain_constraint = None
     else:
@@ -514,6 +523,9 @@ def get_opt_structures(
         sidechain_problems = has_structure_problems(
             sidechain_folder / "xtbopt.xyz",
             charge=charge,
+            aa_letter=letter,
+            tautomer=tautomer,
+            is_sidechainH=True,
         )
         if sidechain_problems:
             raise StructureProblemError(
@@ -535,29 +547,70 @@ def get_opt_structures(
 def has_structure_problems(
     xyz_file: PathLike | str,
     charge: int,
+    aa_letter: str,
+    tautomer: str | None = None,
+    is_sidechainH: bool = False,
     expected_nb_frags: int = 1,
 ) -> str | None:
     """Check if a structure is wrong.
     Args:
         xyz_file: path to the xyz file to check
         charge: charge of the molecule
+        aa_letter: one-letter code of the amino acid
+        tautomer: tautomer of the amino acid (only for histidine, either 'D' or 'E')
+        is_sidechainH: whether the structure is a sidechain-H (default: False, whole rotamer)
         expected_nb_frags: expected number of fragments in the structure
     Returns:
-        An message describing the problem if:
+        A message describing the problem if:
             - different number of fragments than expected
             - chemistry problems detected by RDKit
+            - structure does not match the expected SMARTS
         Otherwise, returns None.
     """
     m = MolFromXYZFile(str(xyz_file))
     DetermineBonds(m, charge=charge)
 
+    # Check number of fragments
     frags = GetMolFrags(m, sanitizeFrags=False)
     if len(frags) != expected_nb_frags:
         return f"{len(frags)} fragments instead of the expected {expected_nb_frags}"
 
+    # Check chemical problems
     problems = DetectChemistryProblems(m)
     if len(problems) > 0:
         return f"RDKit detected problems: {problems}"
+
+    # Remove implicit Hs to check SMARTS
+    for atom in m.GetAtoms():
+        atom.SetNoImplicit(True)
+        if atom.HasProp("_MolFileHCount"):
+            atom.ClearProp("_MolFileHCount")
+    flags = Chem.SanitizeFlags.SANITIZE_ALL & ~Chem.SanitizeFlags.SANITIZE_ADJUSTHS
+    err = Chem.SanitizeMol(m, sanitizeOps=flags, catchErrors=True)
+    if err:
+        return f"RDKit sanitization error code: {err}"
+
+    # Check SMARTS match (backbone can be optimised either in zwitterion or neutral form)
+    possible_smarts = []
+    if tautomer:
+        sidechain_smarts = SIDECHAIN_SMARTS[aa_letter][charge][tautomer]
+    else:
+        sidechain_smarts = SIDECHAIN_SMARTS[aa_letter][charge]
+    if is_sidechainH:
+        sidechainH_smarts = get_smarts_sidechainH(sidechain_smarts, aa_letter)
+        possible_smarts = [Chem.MolFromSmarts(sidechainH_smarts)]
+    else:
+        backbone_forms = (
+            ["pro_zwitterion", "pro_neutral"]
+            if aa_letter == "P"
+            else ["zwitterion", "neutral"]
+        )
+        for form in backbone_forms:
+            whole_smarts = BACKBONE_SMARTS[form].format(R=sidechain_smarts)
+            print(whole_smarts)
+            possible_smarts.append(Chem.MolFromSmarts(whole_smarts))
+    if not any(m.HasSubstructMatch(smarts) for smarts in possible_smarts):
+        return "Structure does not match the amino acid SMARTS"
 
     return None
 
@@ -566,3 +619,16 @@ class StructureProblemError(RuntimeError):
     """Raised when an optimised structure fails the checks."""
 
     pass
+
+
+def get_smarts_sidechainH(sidechain_smarts: str, aa_letter: str) -> str:
+    """Adjust the sidechain SMARTS to make the sidechain-H SMARTS."""
+    if aa_letter == "P":
+        smarts = sidechain_smarts.replace("[CH2]", "[CH3]", 1)[::-1].replace(
+            "]2HC[", "]3HC[", 1
+        )[::-1]
+    elif aa_letter in ["I", "T", "V"]:
+        smarts = sidechain_smarts.replace("[CH]", "[CH2]", 1)
+    else:
+        smarts = sidechain_smarts.replace("[CH2]", "[CH3]", 1)
+    return smarts
