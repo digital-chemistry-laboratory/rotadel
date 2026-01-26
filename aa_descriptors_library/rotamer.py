@@ -34,7 +34,7 @@ class Rotamer:
     def load_existing_sidechain_json(self, json_file: str | PathLike) -> bool:
         """Check if the sidechain already exists in the JSON file, if yes load its coordinates and descriptors.
         Args:
-            JSON file with already calculated rotamer data
+            json_file: JSON file with already calculated rotamer data
         Returns:
             If same sidechain is already in JSON:
                 True and copy existing sidechain and descriptors in Rotamer instance attributes.
@@ -46,7 +46,7 @@ class Rotamer:
             for _, existing_rotamer in content.items():
                 same_chi_angles: bool = all(
                     self._dunbrack_data[field] == existing_rotamer[field]
-                    for field in ["res", "chi1", "chi2", "chi3", "chi4"]
+                    for field in ["res", "psi", "chi1", "chi2", "chi3", "chi4"]
                 )
                 same_charge: bool = self._charge == existing_rotamer["charge"]
                 same_tautomer: bool = self._tautomer == existing_rotamer["tautomer"]
@@ -63,7 +63,7 @@ class Rotamer:
         return False
 
     def load_existing_sidechain_sql(self, conn: sqlite3.Connection) -> bool:
-        """If a matching sidechain already exists in the SQLite DB, if yes load its coordinates and descriptors.
+        """Check if a matching sidechain already exists in the SQLite DB, if yes load its coordinates and descriptors.
         Args:
             conn: SQLite connection to the database
         Returns:
@@ -76,12 +76,14 @@ class Rotamer:
             """
             SELECT rotamer_id, descriptors
             FROM rotamers_data
-            WHERE res = ? AND chi2 = ? AND chi3 IS ? AND chi4 IS ?
+            WHERE res = ? AND psi IS ? AND chi1 IS ? AND chi2 IS ? AND chi3 IS ? AND chi4 IS ?
             AND charge = ? AND tautomer IS ?
             LIMIT 1
         """,
             (
                 self._dunbrack_data["res"],
+                self._dunbrack_data.get("psi"),
+                self._dunbrack_data.get("chi1"),
                 self._dunbrack_data.get("chi2"),
                 self._dunbrack_data.get("chi3"),
                 self._dunbrack_data.get("chi4"),

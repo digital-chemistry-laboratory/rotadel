@@ -133,16 +133,15 @@ def main(
                             rotamer.load_existing_sidechain_json(output_path)
                         )
 
-            if not rotamer_already_exists:
-                if not sidechain_already_calculated:
-                    if not run_folder.exists():
-                        run_folder.mkdir(parents=True)
+            if not rotamer_already_exists and not sidechain_already_calculated:
+                if not run_folder.exists():
+                    run_folder.mkdir(parents=True)
 
-                    # Optimise both whole rotamer and sidechain-H
-                    rotamer.opt_geometries(rerun_failed=rerun_failed)
+                # Optimise both whole rotamer and sidechain-H
+                rotamer.opt_geometries(rerun_failed=rerun_failed)
 
-                    # Calculate descriptors on sidechain-H
-                    rotamer.calc_descriptors()
+                # Calculate descriptors on sidechain-H
+                rotamer.calc_descriptors()
 
                 # Save in database or print out
                 if output_path is None:
