@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import sys
 
+from Bio.PDB import PDBParser
 import numpy as np
 
 from aa_descriptors_library.query import query_closest
@@ -53,3 +54,36 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     main(args.pdb_file, args.output)
+
+
+def dist_atom_ligand_res_pdb(pdb_file, res_num, res_atom_name, lig_atom_name):
+    """Calculate the distance between a residue atom and a ligand atom in a PDB file.
+    Args:
+        pdb_file: Path to the PDB file
+        res_num: Number of the amino acid residue
+        res_atom_name: Name of the atom in the residue
+        lig_atom_name: Name of the atom in the ligand
+    Returns:
+        Distance between the specified residue atom and ligand atom
+    """
+    structure = PDBParser().get_structure("struct", pdb_file)[0]
+    # Assuming residue in chain A
+    res = structure["A"][(" ", res_num, " ")]
+    # Assuming ligand in chain B and only one molecule
+    ligand = structure["B"][(" ", 1, " ")]
+    res_atom = res[res_atom_name]
+    lig_atom = ligand[lig_atom_name]
+    dist = lig_atom - res_atom
+    return dist
+
+
+def get_closest_D127_O(pdb_file):
+    """Return atom index from rotamer descriptor library of the O in D127 closest to the ligand N atom.
+    (6 for OD1, 7 for OD2).
+    """
+    dist_OD1 = dist_atom_ligand_res_pdb(pdb_file, 127, "OD1", "NAG")
+    dist_OD2 = dist_atom_ligand_res_pdb(pdb_file, 127, "OD2", "NAG")
+    if dist_OD1 < dist_OD2:
+        return "OD1"
+    else:
+        return "OD2"
