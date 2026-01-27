@@ -133,6 +133,7 @@ def write_xcontrol(
     file: PathLike | str,
     fixed_atoms: list[int] = None,
     dihedral_constraints: list[tuple[list[int], float]] = None,
+    distance_constraints: list[tuple[list[int], float]] = None,
     fc: float = 0.5,
     opt_engine: str | None = None,
 ) -> None:
@@ -144,7 +145,11 @@ def write_xcontrol(
             Each tuple should contain:
             - A list of exactly four atom indices (1-based) involved in the dihedral angle
             - A float specifying the desired dihedral angle in degrees
-        fc: force constant for constraints (only used if `dihedral_constraints` is provided)
+        distance_constraints: list of tuples for distance constraints
+            Each tuple should contain:
+            - A list of exactly two atom indices (1-based) involved in the distance constraint
+            - A float specifying the desired distance in angstroms
+        fc: force constant for constraints (only used if constraints are provided)
         opt_engine: optimisation engine to use
             - None uses xtb default engine: Approximate Normal Coordinate Rational Function optimizer (ANCopt)
             - "inertial": Fast Inertial Relaxation Engine (FIRE) (for cartesian coordinates)
@@ -153,23 +158,29 @@ def write_xcontrol(
     """
     input = ""
 
-    # Input block for dihedral constraints
-    if dihedral_constraints:
-        if not all(
-            isinstance(item, tuple) and len(item) == 2 for item in dihedral_constraints
+    # Input block for constraints
+    if dihedral_constraints or distance_constraints:
+        for constraints_list, expected_atoms_num in zip(
+            [dihedral_constraints, distance_constraints], [4, 2]
         ):
-            raise ValueError(
-                "For dihedral constraints, provide a list of tuples containing the angle and a list of atom indices."
-            )
+            if constraints_list and not all(
+                isinstance(item, tuple)
+                and len(item) == 2
+                and len(item[0]) == expected_atoms_num
+                for item in constraints_list
+            ):
+                docstring = write_xcontrol.__doc__
+                raise ValueError(
+                    "The provided constraints do not match the expected format. "
+                    f"See docstring:\n\n{docstring}"
+                )
 
         input += "$constrain\n"
         input += f"   force constant={fc}\n"
-        for atoms, angle in dihedral_constraints:
-            if len(atoms) != 4:
-                raise ValueError(
-                    "Each dihedral constraint must have exactly 4 atom indices."
-                )
+        for atoms, angle in dihedral_constraints if dihedral_constraints else []:
             input += f"   dihedral: {', '.join(map(str, atoms))}, {angle}\n"
+        for atoms, distance in distance_constraints if distance_constraints else []:
+            input += f"   distance: {', '.join(map(str, atoms))}, {distance}\n"
         input += "$end\n"
 
     # Input block for fixed atoms
@@ -197,6 +208,7 @@ def run_constraint_xtb(
     path_run: PathLike | str,
     fixed_atoms: list[int] = None,
     dihedral_constraints: list[tuple[list[int], float]] = None,
+    distance_constraints: list[tuple[list[int], float]] = None,
     fc: float = 0.5,
     opt_engine: str | None = None,
     charge: int = 0,
@@ -211,7 +223,11 @@ def run_constraint_xtb(
             Each tuple should contain:
             - A list of exactly four atom indices (1-based) involved in the dihedral angle
             - A float specifying the desired dihedral angle in degrees
-        fc: force constant for constraints (only used if `dihedral_constraints` is provided)
+        distance_constraints: list of tuples for distance constraints
+            Each tuple should contain:
+            - A list of exactly two atom indices (1-based) involved in the distance constraint
+            - A float specifying the desired distance in angstroms
+        fc: force constant for constraints (only used if constraints are provided)
         opt_engine: optimisation engine to use
             - None uses xtb default engine: Approximate Normal Coordinate Rational Function optimizer (ANCopt)
             - "inertial": Fast Inertial Relaxation Engine (FIRE) (for cartesian coordinates)
@@ -226,6 +242,7 @@ def run_constraint_xtb(
         path_run / "xcontrol",
         fixed_atoms=fixed_atoms,
         dihedral_constraints=dihedral_constraints,
+        distance_constraints=distance_constraints,
         fc=fc,
         opt_engine=opt_engine,
     )
@@ -470,11 +487,17 @@ def get_opt_structures(
 
     dihedral_constraints = gen_dihedral_constraints(dunbrack_data)
     letter = dunbrack_data["letter"]
+    # Force the Hs to stay on the NH3 for negatively charged histidine sidechain
+    if letter == "H" and charge == -1:
+        NH3_dist_constraints = [([1, 2], 1.02), ([1, 3], 1.02), ([1, 4], 1.02)]
+    else:
+        NH3_dist_constraints = None
 
     run_constraint_xtb(
         xyz_file=rotamer_xyz,
         path_run=whole_folder,
         dihedral_constraints=dihedral_constraints,
+        distance_constraints=NH3_dist_constraints,
         charge=charge,
         fc=1.0,
     )
@@ -602,7 +625,7 @@ def has_structure_problems(
 
     # Check SMARTS match (backbone can be optimised either in zwitterion or neutral form)
     possible_smarts = []
-    if tautomer:
+    if aa_letter == "H" and charge == 0:
         sidechain_smarts = SIDECHAIN_SMARTS[aa_letter][charge][tautomer]
     else:
         sidechain_smarts = SIDECHAIN_SMARTS[aa_letter][charge]
