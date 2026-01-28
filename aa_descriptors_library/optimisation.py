@@ -487,8 +487,8 @@ def get_opt_structures(
 
     dihedral_constraints = gen_dihedral_constraints(dunbrack_data)
     letter = dunbrack_data["letter"]
-    # Force the Hs to stay on the NH3 for negatively charged histidine sidechain
-    if letter == "H" and charge == -1:
+    # Force the Hs to stay on the NH3 for some rotamers which otherwise optimise to wrong structures
+    if charge == -1 or letter == "N":
         NH3_dist_constraints = [([1, 2], 1.02), ([1, 3], 1.02), ([1, 4], 1.02)]
     else:
         NH3_dist_constraints = None
