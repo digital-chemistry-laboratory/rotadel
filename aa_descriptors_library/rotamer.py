@@ -5,7 +5,11 @@ import json
 import sqlite3
 import numpy as np
 
-from aa_descriptors_library.optimisation import get_opt_structures, start_rotamer_xyz
+from aa_descriptors_library.optimisation import (
+    get_opt_structures,
+    has_structure_problems,
+    start_rotamer_xyz,
+)
 from aa_descriptors_library.descriptors import calc_descriptors
 
 
@@ -126,6 +130,23 @@ class Rotamer:
                 charge=self._charge,
                 tautomer=self._tautomer,
             )
+            start_problems = has_structure_problems(
+                starting_rotamer_xyz,
+                charge=self._charge,
+                aa_letter=self._dunbrack_data["letter"],
+                tautomer=self._tautomer,
+                check_smarts=True,
+                check_fragments=False,
+                check_chemistry=False,
+            )
+            if start_problems:
+                start_rotamer_xyz(
+                    dunbrack_data=self._dunbrack_data,
+                    xyz_output=starting_rotamer_xyz,
+                    charge=self._charge,
+                    tautomer=self._tautomer,
+                    set_N_CA_C_O_diangle=False,
+                )
 
             try:
                 (

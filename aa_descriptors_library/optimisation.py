@@ -351,6 +351,7 @@ def start_rotamer_xyz(
     xyz_output: PathLike | str,
     charge: int,
     tautomer: str = None,
+    set_N_CA_C_O_diangle: bool = True,
 ) -> None:
     """Build initial rotamer geometry from Dunbrack dihedral angles.
     Args:
@@ -358,6 +359,7 @@ def start_rotamer_xyz(
         xyz_output: path to XYZ file to create
         charge: charge of the rotamer
         tautomer: tautomer of the rotamer (only for histidine, either 'D' or 'E')
+        set_N_CA_C_O_diangle: whether to set the N-CA-C=O dihedral angle according to psi value
     Returns:
         None, writes the non-optimised rotamer geometry to the XYZ file
     """
@@ -368,7 +370,8 @@ def start_rotamer_xyz(
     geo = Geometry.geometry(letter)
     geo.phi = dunbrack_data["phi"]
     geo.psi_im1 = dunbrack_data["psi"]
-    geo.N_CA_C_O_diangle = dunbrack_data["psi"] - 180.0
+    if set_N_CA_C_O_diangle:
+        geo.N_CA_C_O_diangle = dunbrack_data["psi"] - 180.0
     if letter == "R":
         geo.N_CA_CB_CG_diangle = dunbrack_data["chi1"]
         geo.CA_CB_CG_CD_diangle = dunbrack_data["chi2"]
