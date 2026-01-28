@@ -27,10 +27,12 @@ from aa_descriptors_library import config
 
 def gen_dihedral_constraints(
     dunbrack_data: dict[str, Any],
+    constrain_N_CA_C_O_diangle: bool = True,
 ) -> list[tuple[list[int], float]]:
     """Generate the dihedral contraints for the specified whole rotamer.
     Args:
         dunbrack_data: data with angles extracted from the Dunbrack library
+        constrain_N_CA_C_O_diangle: whether to constrain the N-CA-C=O dihedral angle according to psi value
     Returns:
         list of tuples for dihedral constraints (1-based atom indices)
     """
@@ -88,12 +90,13 @@ def gen_dihedral_constraints(
             ([G, D, CE, Z], dunbrack_data["chi4"]),
         ]
 
-    # N-CA-C=O dihedral deduced from psi, considering the =O as being at 180° from N(i+1)
-    if letter == "P":
-        N_CA_C_O_constraint = ([N, 4, 6, 7], dunbrack_data["psi"] - 180.0)
-    else:
-        N_CA_C_O_constraint = ([N, CA, C_COO, O_COO], dunbrack_data["psi"] - 180.0)
-    dihedral_constraints.append(N_CA_C_O_constraint)
+    if constrain_N_CA_C_O_diangle:
+        # N-CA-C=O dihedral deduced from psi, considering the =O as being at 180° from N(i+1)
+        if letter == "P":
+            N_CA_C_O_constraint = ([N, 4, 6, 7], dunbrack_data["psi"] - 180.0)
+        else:
+            N_CA_C_O_constraint = ([N, CA, C_COO, O_COO], dunbrack_data["psi"] - 180.0)
+        dihedral_constraints.append(N_CA_C_O_constraint)
 
     return dihedral_constraints
 
@@ -458,6 +461,7 @@ def get_opt_structures(
     check: bool = True,
     tautomer: str | None = None,
     rotamer_id: str = "",
+    constrain_N_CA_C_O_diangle: bool = True,
 ) -> tuple[
     Array1DStr,
     Array2DFloat,
@@ -473,6 +477,7 @@ def get_opt_structures(
         check: whether to check for problems in the optimised structures
         tautomer: tautomer for histidine (used for structure checking if `check` is True)
         rotamer_id: ID of the rotamer (used for error messages if `check` is True)
+        constrain_N_CA_C_O_diangle: whether to constrain the N-CA-C=O dihedral angle according to psi value
     Returns:
         el_whole, coord_whole, el_sidechain, coord_sidechain: elements and coordinates of the optimised structures
     """
@@ -488,7 +493,9 @@ def get_opt_structures(
         shutil.rmtree(whole_folder)
     whole_folder.mkdir(parents=True)
 
-    dihedral_constraints = gen_dihedral_constraints(dunbrack_data)
+    dihedral_constraints = gen_dihedral_constraints(
+        dunbrack_data, constrain_N_CA_C_O_diangle=constrain_N_CA_C_O_diangle
+    )
     letter = dunbrack_data["letter"]
     # Force the Hs to stay on the NH3 for some rotamers which otherwise optimise to wrong structures
     if charge == -1 or letter == "N":

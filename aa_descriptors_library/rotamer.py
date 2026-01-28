@@ -122,6 +122,7 @@ class Rotamer:
         """Optimise the rotamer and sidechain-H geometries."""
         starting_rotamer_xyz = self._run_path / "rotamer_start.xyz"
         max_attempts = 3 if rerun_failed else 1
+        constrain_N_CA_C_O_diangle = True
 
         for attempt in range(max_attempts):
             start_rotamer_xyz(
@@ -149,6 +150,11 @@ class Rotamer:
                 )
 
             try:
+                if attempt > 0 and (
+                    (self._dunbrack_data["letter"] == "H" and self._charge == +1)
+                    or (self._dunbrack_data["letter"] == "D" and self._charge == 0)
+                ):
+                    constrain_N_CA_C_O_diangle = False
                 (
                     el_whole,
                     coord_whole,
@@ -161,6 +167,7 @@ class Rotamer:
                     rotamer_xyz=starting_rotamer_xyz,
                     tautomer=self._tautomer,
                     rotamer_id=self._key,
+                    constrain_N_CA_C_O_diangle=constrain_N_CA_C_O_diangle,
                 )
             except Exception:
                 if attempt == max_attempts - 1:
