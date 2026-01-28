@@ -584,6 +584,9 @@ def has_structure_problems(
     tautomer: str | None = None,
     is_sidechainH: bool = False,
     expected_nb_frags: int = 1,
+    check_fragments: bool = True,
+    check_chemistry: bool = True,
+    check_smarts: bool = True,
 ) -> str | None:
     """Check if a structure is wrong.
     Args:
@@ -593,56 +596,58 @@ def has_structure_problems(
         tautomer: tautomer of the amino acid (only for histidine, either 'D' or 'E')
         is_sidechainH: whether the structure is a sidechain-H (default: False, whole rotamer)
         expected_nb_frags: expected number of fragments in the structure
+        check_fragments: whether to check if different number of fragments than expected
+        check_chemistry: whether to check for chemistry problems detected by RDKit
+        check_smarts: whether to check if structure matches the expected SMARTS
     Returns:
-        A message describing the problem if:
-            - different number of fragments than expected
-            - chemistry problems detected by RDKit
-            - structure does not match the expected SMARTS
-        Otherwise, returns None.
+        A message describing the problem if any of the checks fail, otherwise None
     """
     m = MolFromXYZFile(str(xyz_file))
     DetermineBonds(m, charge=charge)
 
     # Check number of fragments
-    frags = GetMolFrags(m, sanitizeFrags=False)
-    if len(frags) != expected_nb_frags:
-        return f"{len(frags)} fragments instead of the expected {expected_nb_frags}"
+    if check_fragments:
+        frags = GetMolFrags(m, sanitizeFrags=False)
+        if len(frags) != expected_nb_frags:
+            return f"{len(frags)} fragments instead of the expected {expected_nb_frags}"
 
     # Check chemical problems
-    problems = DetectChemistryProblems(m)
-    if len(problems) > 0:
-        return f"RDKit detected problems: {problems}"
+    if check_chemistry:
+        problems = DetectChemistryProblems(m)
+        if len(problems) > 0:
+            return f"RDKit detected problems: {problems}"
 
-    # Remove implicit Hs to check SMARTS
-    for atom in m.GetAtoms():
-        atom.SetNoImplicit(True)
-        if atom.HasProp("_MolFileHCount"):
-            atom.ClearProp("_MolFileHCount")
-    flags = Chem.SanitizeFlags.SANITIZE_ALL & ~Chem.SanitizeFlags.SANITIZE_ADJUSTHS
-    err = Chem.SanitizeMol(m, sanitizeOps=flags, catchErrors=True)
-    if err:
-        return f"RDKit sanitization error code: {err}"
+    if check_smarts:
+        # Remove implicit Hs to check SMARTS
+        for atom in m.GetAtoms():
+            atom.SetNoImplicit(True)
+            if atom.HasProp("_MolFileHCount"):
+                atom.ClearProp("_MolFileHCount")
+        flags = Chem.SanitizeFlags.SANITIZE_ALL & ~Chem.SanitizeFlags.SANITIZE_ADJUSTHS
+        err = Chem.SanitizeMol(m, sanitizeOps=flags, catchErrors=True)
+        if err:
+            return f"RDKit sanitization error code: {err}"
 
-    # Check SMARTS match (backbone can be optimised either in zwitterion or neutral form)
-    possible_smarts = []
-    if aa_letter == "H" and charge == 0:
-        sidechain_smarts = SIDECHAIN_SMARTS[aa_letter][charge][tautomer]
-    else:
-        sidechain_smarts = SIDECHAIN_SMARTS[aa_letter][charge]
-    if is_sidechainH:
-        sidechainH_smarts = get_smarts_sidechainH(sidechain_smarts, aa_letter)
-        possible_smarts = [Chem.MolFromSmarts(sidechainH_smarts)]
-    else:
-        backbone_forms = (
-            ["pro_zwitterion", "pro_neutral"]
-            if aa_letter == "P"
-            else ["zwitterion", "neutral"]
-        )
-        for form in backbone_forms:
-            whole_smarts = BACKBONE_SMARTS[form].format(R=sidechain_smarts)
-            possible_smarts.append(Chem.MolFromSmarts(whole_smarts))
-    if not any(m.HasSubstructMatch(smarts) for smarts in possible_smarts):
-        return "Structure does not match the amino acid SMARTS"
+        # Check SMARTS match (backbone can be optimised either in zwitterion or neutral form)
+        possible_smarts = []
+        if aa_letter == "H" and charge == 0:
+            sidechain_smarts = SIDECHAIN_SMARTS[aa_letter][charge][tautomer]
+        else:
+            sidechain_smarts = SIDECHAIN_SMARTS[aa_letter][charge]
+        if is_sidechainH:
+            sidechainH_smarts = get_smarts_sidechainH(sidechain_smarts, aa_letter)
+            possible_smarts = [Chem.MolFromSmarts(sidechainH_smarts)]
+        else:
+            backbone_forms = (
+                ["pro_zwitterion", "pro_neutral"]
+                if aa_letter == "P"
+                else ["zwitterion", "neutral"]
+            )
+            for form in backbone_forms:
+                whole_smarts = BACKBONE_SMARTS[form].format(R=sidechain_smarts)
+                possible_smarts.append(Chem.MolFromSmarts(whole_smarts))
+        if not any(m.HasSubstructMatch(smarts) for smarts in possible_smarts):
+            return "Structure does not match the amino acid SMARTS"
 
     return None
 
