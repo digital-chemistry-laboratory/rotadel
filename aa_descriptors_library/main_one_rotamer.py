@@ -60,6 +60,7 @@ def main(
     run_path: PathLike | str | None = None,
     output_path: PathLike | str | None = None,
     rerun_failed: bool = False,
+    sys_exit: bool = False,
 ) -> None:
     """Optimise rotamer geometry and calculate descriptors on it.
     Args:
@@ -72,6 +73,7 @@ def main(
             If folder, create individual rotamer_id.json inside.
             If None, print output to stdout.
         rerun_failed: whether to rerun geometry optimisations on failure
+        sys_exit: whether to exit with sys.exit(1) (True) or raise exception (False) when error
     Returns:
         None, writes data to database or stdout
     """
@@ -167,9 +169,11 @@ def main(
                     )
 
     except Exception:
-        # raise # Uncomment to see the error in the terminal as usual
         sys.stderr.write(f"*** Rotamer {rotamer_id}\n{traceback.format_exc()}\n")
-        sys.exit(1)
+        if sys_exit:
+            sys.exit(1)
+        else:
+            raise
 
 
 if __name__ == "__main__":
@@ -179,4 +183,5 @@ if __name__ == "__main__":
         angles_json,
         output_path=output_path,
         rerun_failed=rerun_failed,
+        sys_exit=True,
     )
