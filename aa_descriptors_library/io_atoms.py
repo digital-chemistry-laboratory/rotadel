@@ -1,7 +1,83 @@
 from os import PathLike
 from pathlib import Path
 
+from Bio.PDB import PDBParser
+from morfeus import read_xyz
 from morfeus.typing import Array1DStr, Array2DFloat
+import numpy as np
+from openbabel import pybel
+
+
+def read_geo(geo_file: PathLike | str) -> tuple[Array1DStr, Array2DFloat]:
+    """Read elements and coordinates [Å] from a molecular structure file."""
+    geo_file = Path(geo_file)
+    if geo_file.suffix == ".xyz":
+        elements, coordinates = read_xyz(geo_file)
+    elif geo_file.suffix == ".pdb":
+        structure = PDBParser(QUIET=True).get_structure("x", geo_file)
+        atoms = list(structure.get_atoms())
+        elements = np.array([a.element.strip() for a in atoms])
+        coordinates = np.array([a.coord for a in atoms])
+    else:
+        raise ValueError(f"Unsupported file format: {geo_file.suffix}")
+
+    return elements, coordinates
+
+
+def convert_file(
+    input_file: PathLike | str,
+    output_file: PathLike | str | None = None,
+    output_format: str | None = None,
+    delete_input: bool = True,
+) -> None:
+    """Convert a molecular structure file from one format to another."""
+    pybel.ob.obErrorLog.SetOutputLevel(
+        0
+    )  # suppress the "Failed to kekulize aromatic bonds" warning
+    structure = next(pybel.readfile(Path(input_file).suffix[1:], str(input_file)))
+    if output_file is None and output_format is not None:
+        output_file = Path(input_file).with_suffix(f".{output_format}")
+    elif output_file is not None and output_format is None:
+        output_format = Path(output_file).suffix[1:]
+    else:
+        raise ValueError("Either output_file or output_format must be provided.")
+    structure.write(output_format, str(output_file), overwrite=True)
+    if delete_input:
+        Path(input_file).unlink()
+
+
+def map_atom_indices(pdb_file: PathLike | str) -> dict[str, int]:
+    """Map atom names to their indices from a PDB file."""
+    mapping = {}
+    with open(pdb_file) as f:
+        for line in f:
+            if line.startswith("ATOM"):
+                parts = line.split()
+                atom_index = int(parts[1])
+                atom_name = parts[2]
+                mapping[atom_name] = atom_index
+    return mapping
+
+
+def idx_atoms_at_position(atom_mapping: dict[str, int], position: str) -> list[int]:
+    """Get the indices of the heavy atoms at a given position in an amino acid.
+    Args:
+        atom_mapping: mapping of atom names to their indices from a PDB file
+        position: position identifier to search for (e.g., "B", "G", "D", etc.)
+    Returns:
+        List of indices of the heavy atoms at the specified position
+        (ascending order of their name, e.g. "G1" before "G2")
+    """
+    matches = [
+        (name, index)
+        for name, index in atom_mapping.items()
+        if (position in name) and not name.startswith("H")
+    ]
+
+    if len(matches) > 1:
+        matches.sort(key=lambda x: x[0])
+
+    return [index for _, index in matches]
 
 
 def get_atom_count(xyz_file: PathLike | str) -> int:

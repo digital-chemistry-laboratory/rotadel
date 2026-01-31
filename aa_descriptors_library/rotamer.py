@@ -8,7 +8,7 @@ import numpy as np
 from aa_descriptors_library.optimisation import (
     get_opt_structures,
     has_structure_problems,
-    start_rotamer_xyz,
+    start_rotamer_geo,
 )
 from aa_descriptors_library.descriptors import calc_descriptors
 
@@ -120,19 +120,19 @@ class Rotamer:
 
     def opt_geometries(self, rerun_failed: bool = False) -> None:
         """Optimise the rotamer and sidechain-H geometries."""
-        starting_rotamer_xyz = self._run_path / "rotamer_start.xyz"
+        starting_rotamer_file = self._run_path / "rotamer_start.pdb"
         max_attempts = 3 if rerun_failed else 1
         constrain_N_CA_C_O_diangle = True
 
         for attempt in range(max_attempts):
-            start_rotamer_xyz(
+            start_rotamer_geo(
                 dunbrack_data=self._dunbrack_data,
-                xyz_output=starting_rotamer_xyz,
+                output_file=starting_rotamer_file,
                 charge=self._charge,
                 tautomer=self._tautomer,
             )
             start_problems = has_structure_problems(
-                starting_rotamer_xyz,
+                starting_rotamer_file,
                 charge=self._charge,
                 aa_letter=self._dunbrack_data["letter"],
                 tautomer=self._tautomer,
@@ -141,9 +141,9 @@ class Rotamer:
                 check_chemistry=False,
             )
             if start_problems:
-                start_rotamer_xyz(
+                start_rotamer_geo(
                     dunbrack_data=self._dunbrack_data,
-                    xyz_output=starting_rotamer_xyz,
+                    output_file=starting_rotamer_file,
                     charge=self._charge,
                     tautomer=self._tautomer,
                     set_N_CA_C_O_diangle=False,
@@ -164,7 +164,7 @@ class Rotamer:
                     dunbrack_data=self._dunbrack_data,
                     charge=self._charge,
                     run_folder=self._run_path,
-                    rotamer_xyz=starting_rotamer_xyz,
+                    start_rotamer_file=starting_rotamer_file,
                     tautomer=self._tautomer,
                     rotamer_id=self._key,
                     constrain_N_CA_C_O_diangle=constrain_N_CA_C_O_diangle,

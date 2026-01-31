@@ -1,14 +1,15 @@
 from pathlib import Path
 
-from morfeus import read_xyz
 from morfeus.typing import Array1DStr, Array2DFloat
 from morfeus.utils import convert_elements
 from spyrmsd import rmsd, graph
 
+from aa_descriptors_library.io_atoms import read_geo
+
 
 def rmsd_symmetric(
-    xyz_file1: str | Path | None = None,
-    xyz_file2: str | Path | None = None,
+    file1: str | Path | None = None,
+    file2: str | Path | None = None,
     el1: Array1DStr | None = None,
     coords1: Array2DFloat | None = None,
     el2: Array1DStr | None = None,
@@ -17,7 +18,7 @@ def rmsd_symmetric(
 ) -> float:
     """Calculate RMSD between two molecular structures, handling different atom ordering.
     Args:
-        xyz_file1, xyz_file2: paths to XYZ files
+        file1, file2: paths to coordinate files
         el1, el2: elements
         coords1, coords2: coordinates [Å]
         diff_order: whether atoms are in different order
@@ -25,10 +26,10 @@ def rmsd_symmetric(
         RMSD value [Å]
     """
 
-    if xyz_file1 is not None:
-        el1, coords1 = read_xyz(xyz_file1)
-    if xyz_file2 is not None:
-        el2, coords2 = read_xyz(xyz_file2)
+    if file1 is not None:
+        el1, coords1 = read_geo(file1)
+    if file2 is not None:
+        el2, coords2 = read_geo(file2)
 
     if diff_order:
         el_nums1 = convert_elements(el1)

@@ -1,13 +1,13 @@
 from pathlib import Path
 import sqlite3
 import json
-from morfeus import read_xyz
 from spyrmsd.rmsd import rmsd
 import mdtraj as md
 import numpy as np
 import pandas as pd
 from typing_extensions import deprecated
 
+from aa_descriptors_library.io_atoms import read_geo
 from aa_descriptors_library.sql import get_xyz_from_sql
 from aa_descriptors_library.constants import (
     NDRD_PATH,
@@ -385,7 +385,7 @@ def query_closest_rmsd(
     if sql_path is None:
         sql_path = SQL_PATH
 
-    el_target, coords_target = read_xyz(target_rotamer_xyz)
+    el_target, coords_target = read_geo(target_rotamer_xyz)
     # Remove hydrogens
     mask_noHs = el_target != "H"
     el_target_noHs = el_target[mask_noHs]
