@@ -37,12 +37,9 @@ def main(slurm_folder, run_name=None):
         ),
         "xtb_failed": re.compile(r"RuntimeError: xtb calculation failed"),
         "ConeAngle": re.compile(r"ConeAngle"),
-        "failed_checks_whole": re.compile(
-            r"StructureProblemError: Optimised whole rotamer failed checks"
-        ),
-        "failed_checks_sidechain": re.compile(
-            r"StructureProblemError: Optimised sidechain-H failed checks"
-        ),
+        "check_fragments": re.compile(r"fragments instead of the expected"),
+        "check_chemistry": re.compile(r"RDKit detected problems"),
+        "check_SMARTS": re.compile(r"match the amino acid SMARTS"),
         "DetermineBonds": re.compile(
             r"rdkit\.Chem\.rdDetermineBonds\.DetermineBonds\(NoneType\)"
         ),
@@ -95,8 +92,9 @@ def main(slurm_folder, run_name=None):
         ">_None",
         "xtb_failed",
         "ConeAngle",
-        "failed_checks_whole",
-        "failed_checks_sidechain",
+        "check_fragments",
+        "check_chemistry",
+        "check_SMARTS",
         "DetermineBonds",
         "charge_not_matching",
         "Other",
