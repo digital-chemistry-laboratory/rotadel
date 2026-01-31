@@ -16,7 +16,10 @@ import shutil
 import subprocess
 from typing import Any
 
-from aa_descriptors_library.io import get_atom_count
+from aa_descriptors_library.io_atoms import (
+    get_atom_count,
+    replace_backbone,
+)
 from aa_descriptors_library.constants import (
     BACKBONE_SMARTS,
     NUMBER_OF_CHI_ANGLES,
