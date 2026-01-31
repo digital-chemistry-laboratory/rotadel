@@ -8,7 +8,7 @@ import traceback
 import json
 import sqlite3
 
-from aa_descriptors_library.utils import lock
+from aa_descriptors_library.io import lock
 from aa_descriptors_library.rotamer import Rotamer
 from aa_descriptors_library.sql import init_sql_db
 

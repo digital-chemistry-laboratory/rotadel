@@ -7,7 +7,7 @@ from Bio.PDB import PDBParser
 import numpy as np
 
 from aa_descriptors_library.query import query_closest
-from aa_descriptors_library.utils import lock
+from aa_descriptors_library.io import lock
 
 
 class NumpyEncoder(json.JSONEncoder):
