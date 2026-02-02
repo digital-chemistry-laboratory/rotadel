@@ -116,7 +116,9 @@ def calc_descriptors(
     adjusted_coord = move_central_atom(
         sidechain_coords, central_index=0, bonded_index=1
     )
-    cone_angle = ConeAngle(sidechain_el, adjusted_coord, atom_1=1)
+    cone_angle = ConeAngle(
+        sidechain_el, np.asarray(adjusted_coord, dtype=np.float64), atom_1=1
+    )
     descriptors["cone_angle"] = cone_angle.cone_angle
 
     # Dispersion descriptor

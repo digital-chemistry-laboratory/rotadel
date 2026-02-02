@@ -117,13 +117,108 @@ def xyz_string(elements: Array1DStr, coordinates: Array2DFloat) -> str:
     return xyz_string
 
 
+def rows_to_pdb_format(atom_rows: list[list[str]], add_end=True) -> str:
+    """Format an atom row for a PDB file to ensure proper spacing."""
+    # Renumber atom serials
+    for i, row in enumerate(atom_rows, 1):
+        row[1] = str(i)
+
+    def format_atom_row(atom_row: list[str]) -> str:
+        rec_type = atom_row[0]
+        serial = int(atom_row[1])
+        name = atom_row[2]
+        resName = atom_row[3]
+        chainID = atom_row[4]
+        resSeq = int(atom_row[5])
+        x, y, z = float(atom_row[6]), float(atom_row[7]), float(atom_row[8])
+        occ = float(atom_row[9]) if len(atom_row) > 9 else 1.00
+        tf = float(atom_row[10]) if len(atom_row) > 10 else 0.00
+        element = atom_row[-1]
+        return (
+            f"{rec_type:<6}{serial:>5} {name:<5}{resName:<4}{chainID:<1}{resSeq:>4}"
+            f"{x:>12.3f}{y:>8.3f}{z:>8.3f}"
+            f"{occ:>6.2f}{tf:>6.2f}{element:>12}"
+        )
+
+    out_lines = [format_atom_row(row) for row in atom_rows]
+    if add_end:
+        out_lines.append("END")
+
+    return "\n".join(out_lines) + "\n"
+
+
 def replace_backbone(
+    input_file: PathLike | str,
+    output_file: PathLike | str,
+    is_pro: bool = False,
+) -> None:
+    format = Path(input_file).suffix[1:]
+    if format.lower() == "pdb":
+        _replace_backbone_pdb(input_file, output_file, is_pro)
+    elif format.lower() == "xyz":
+        _replace_backbone_xyz(input_file, output_file, is_pro)
+    else:
+        raise ValueError(f"Unsupported format: {format}")
+
+
+def _replace_backbone_pdb(
     input_file: PathLike | str, output_file: PathLike | str, is_pro: bool = False
 ) -> None:
-    """Replace the backbone of the rotamer by a H.
+    """Replace the backbone of the rotamer by a H in a PDB file.
     Args:
-        input_file: path to the input xyz file
-        output_file: path to the output xyz file
+        input_file: path to the input PDB file
+        output_file: path to the output PDB file
+        is_pro: whether the rotamer is a proline
+            If True, both the backbone N and C alpha are replaced by Hs
+    Returns:
+        None, writes the modified structure to the output file
+    """
+
+    output_file = Path(output_file)
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(input_file, "r") as file:
+        lines = file.readlines()
+    atom_rows = [line.split() for line in lines if line.startswith("ATOM")]
+
+    if is_pro:
+        atoms_to_delete = {"H", "H1", "H2", "H3", "HA", "C", "O", "OXT"}
+        atoms_to_replace_by_H = {"N", "CA"}
+    else:
+        atoms_to_delete = {"N", "H", "H1", "H2", "H3", "HA", "C", "O", "OXT"}
+        atoms_to_replace_by_H = {"CA"}
+
+    new_atom_rows = []
+    for row in atom_rows:
+        atom_name = row[2]
+        if atom_name in atoms_to_delete:
+            continue
+        elif atom_name in atoms_to_replace_by_H:
+            new_row = row.copy()
+            new_row[2] = f"H{atom_name}"
+            new_row[-1] = "H"
+            if atom_name == "N":
+                pro_N_row = new_row
+            else:
+                new_atom_rows.append(new_row)
+        else:
+            new_atom_rows.append(row)
+    if is_pro:
+        new_atom_rows.append(pro_N_row)
+
+    pdb_str = rows_to_pdb_format(new_atom_rows)
+
+    with open(output_file, "w") as output_file:
+        output_file.write(pdb_str)
+
+
+def _replace_backbone_xyz(
+    input_file: PathLike | str, output_file: PathLike | str, is_pro: bool = False
+) -> None:
+    """Replace the backbone of the rotamer by a H in an XYZ file.
+    Args:
+        input_file: path to the input XYZ file
+        output_file: path to the output XYZ file
         is_pro: whether the rotamer is a proline
             If True, both the backbone N and C alpha are replaced by Hs
     Returns:
