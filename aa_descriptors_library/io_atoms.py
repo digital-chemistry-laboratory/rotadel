@@ -90,7 +90,7 @@ def idx_atoms_at_position(atom_mapping: dict[str, int], position: str) -> list[i
     ]
 
     if len(matches) > 1:
-        matches.sort(key=lambda x: x[0])
+        matches.sort(key=lambda x: int(x[0][-1]))
 
     return [index for _, index in matches]
 
