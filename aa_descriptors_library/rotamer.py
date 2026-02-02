@@ -33,6 +33,7 @@ class Rotamer:
         self._rotamer_coordinates = None
         self._sidechainH_elements = None
         self._sidechainH_coordinates = None
+        self._sidechainH_mapping = None
         self._descriptors = {}
 
     def load_existing_sidechain_json(self, json_file: str | PathLike) -> bool:
@@ -160,6 +161,7 @@ class Rotamer:
                     coord_whole,
                     el_sidechain,
                     coord_sidechain,
+                    sidechain_atoms_indices,
                 ) = get_opt_structures(
                     dunbrack_data=self._dunbrack_data,
                     charge=self._charge,
@@ -178,6 +180,7 @@ class Rotamer:
             self._rotamer_coordinates = coord_whole
             self._sidechainH_elements = el_sidechain
             self._sidechainH_coordinates = coord_sidechain
+            self._sidechainH_mapping = sidechain_atoms_indices
 
     def calc_descriptors(self) -> None:
         """Calculate the descriptors on the sidechain-H."""
@@ -188,8 +191,9 @@ class Rotamer:
         descriptors = calc_descriptors(
             self._sidechainH_elements,
             self._sidechainH_coordinates,
-            charge=self._charge,
+            self._sidechainH_mapping,
             res=self._dunbrack_data["res"],
+            charge=self._charge,
         )
         self._descriptors = descriptors
 

@@ -37,18 +37,24 @@ def move_central_atom(
 
 def clean_atomic_descriptors(
     morfeus_dict: dict[int, np.float64],
-    res: str | None = None,
+    sidechain_atoms_mapping: dict[str, int],
+    res: str,
     is_bond_order: bool = False,
 ) -> dict[int, np.float64]:
     """Rewrite the dictionary returned by Morfeus to remove the permutable hydrogens.
     Args:
         morfeus_descriptor: dictionary of the atomic descriptor calculated by Morfeus
+        sidechain_atoms_mapping: mapping of PDB atom names to their 1-based row indices
         res: three-letter code of the amino acid residue
         is_bond_order: whether the descriptor is bond orders
     Returns:
         Dictionary with only the non-permutable sidechain atoms (1-indexed)
     """
-    indices_to_keep = NON_PERMUTABLE_INDICES_SIDECHAIN[THREE_TO_ONE_AA[res.upper()]]
+    indices_to_keep = [
+        idx
+        for name, idx in sidechain_atoms_mapping.items()
+        if name in NON_PERMUTABLE_INDICES_SIDECHAIN[THREE_TO_ONE_AA[res.upper()]]
+    ]
     if is_bond_order:
         output_dict = {}
         for key, value in morfeus_dict.items():
@@ -68,17 +74,19 @@ def clean_atomic_descriptors(
 def calc_descriptors(
     sidechain_el: Array1DStr,
     sidechain_coords: Array2DFloat,
+    sidechain_atoms_mapping: dict[str, int],
+    res: str,
     charge: int = 0,
     solvent: str = "ether",
-    res: str | None = None,
 ) -> dict[str, Any]:
     """Calculate stereo-electronic descriptors on optimised sidechain.
     Args:
         sidechain_el: elements symbols of the sidechain-H geometry
         sidechain_coords: coordinates of the optimised sidechain-H geometry [Å]
+        sidechain_atoms_mapping: mapping of PDB atom names to their 1-based row indices
+        res: three-letter code of the amino acid residue
         charge: charge of the sidechain-H geometry
         solvent: implicit solvent for the optimisation
-        res: three-letter code of the amino acid residue
     Returns:
         Dictionary of the calculated descriptors
     """
@@ -139,24 +147,25 @@ def calc_descriptors(
         "electrophilicity"
     )
     descriptors["local_nucleophilicity"] = clean_atomic_descriptors(
-        xtb.get_fukui("local_nucleophilicity"), res=res
+        xtb.get_fukui("local_nucleophilicity"), sidechain_atoms_mapping, res
     )
     descriptors["local_electrophilicity"] = clean_atomic_descriptors(
-        xtb.get_fukui("local_electrophilicity"), res=res
+        xtb.get_fukui("local_electrophilicity"), sidechain_atoms_mapping, res
     )
     descriptors["fukui_minus"] = clean_atomic_descriptors(
-        xtb.get_fukui("nucleophilicity"), res=res
+        xtb.get_fukui("nucleophilicity"), sidechain_atoms_mapping, res
     )
     descriptors["fukui_plus"] = clean_atomic_descriptors(
-        xtb.get_fukui("electrophilicity"), res=res
+        xtb.get_fukui("electrophilicity"), sidechain_atoms_mapping, res
     )
     descriptors["partial_charges"] = clean_atomic_descriptors(
-        xtb.get_charges(), res=res
+        xtb.get_charges(), sidechain_atoms_mapping, res
     )
     bond_orders = xtb.get_bond_orders()
     descriptors["bond_orders"] = clean_atomic_descriptors(
         {f"{k[0]}, {k[1]}": v for k, v in bond_orders.items()},
-        res=res,
+        sidechain_atoms_mapping,
+        res,
         is_bond_order=True,
     )
 

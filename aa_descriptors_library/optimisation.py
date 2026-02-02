@@ -31,41 +31,40 @@ from aa_descriptors_library import config
 
 def gen_dihedral_constraints(
     dunbrack_data: dict[str, Any],
-    pdb_file: PathLike | str,
+    atoms_indices: dict[str, int],
     constrain_N_CA_C_O_diangle: bool = True,
 ) -> list[tuple[list[int], float]]:
     """Generate the dihedral contraints for the specified whole rotamer.
     Args:
         dunbrack_data: data with angles extracted from the Dunbrack library
-        pdb_file: file of the whole rotamer geometry
+        atom_indices: mapping of PDB atom names to their 1-based row indices
         constrain_N_CA_C_O_diangle: whether to constrain the N-CA-C=O dihedral angle according to psi value
     Returns:
         list of tuples for dihedral constraints (1-based atom indices)
     """
     letter = dunbrack_data["letter"]
     nb_chis = NUMBER_OF_CHI_ANGLES[letter]
-    atom_indices = map_atom_indices(pdb_file)
 
     dihedral_constraints = []
-    N = atom_indices["N"]
-    CA = atom_indices["CA"]
-    CB = idx_atoms_at_position(atom_indices, "B")[0]
-    G = idx_atoms_at_position(atom_indices, "G")[0]
+    N = atoms_indices["N"]
+    CA = atoms_indices["CA"]
+    CB = idx_atoms_at_position(atoms_indices, "B")[0]
+    G = idx_atoms_at_position(atoms_indices, "G")[0]
     dihedral_constraints.append(([N, CA, CB, G], dunbrack_data["chi1"]))
     if nb_chis >= 2:
-        D = idx_atoms_at_position(atom_indices, "D")[0]
+        D = idx_atoms_at_position(atoms_indices, "D")[0]
         dihedral_constraints.append(([CA, CB, G, D], dunbrack_data["chi2"]))
     if nb_chis >= 3:
-        E = idx_atoms_at_position(atom_indices, "E")[0]
+        E = idx_atoms_at_position(atoms_indices, "E")[0]
         dihedral_constraints.append(([CB, G, D, E], dunbrack_data["chi3"]))
     if nb_chis >= 4:
-        Z = idx_atoms_at_position(atom_indices, "Z")[0]
+        Z = idx_atoms_at_position(atoms_indices, "Z")[0]
         dihedral_constraints.append(([G, D, E, Z], dunbrack_data["chi4"]))
 
     # N-CA-C=O dihedral deduced from psi, considering the =O as being at 180° from N(i+1)
     if constrain_N_CA_C_O_diangle:
-        C = atom_indices["C"]
-        O_double = atom_indices["O"]
+        C = atoms_indices["C"]
+        O_double = atoms_indices["O"]
         N_CA_C_O_constraint = ([N, CA, C, O_double], dunbrack_data["psi"] - 180.0)
         dihedral_constraints.append(N_CA_C_O_constraint)
 
@@ -73,51 +72,49 @@ def gen_dihedral_constraints(
 
 
 def gen_NH3_dist_constraints(
-    pdb_file: PathLike | str,
+    atoms_indices: dict[str, int],
     dist: float = 1.02,
 ) -> list[tuple[list[int], float]]:
     """Generate the distance constraints tuples between N and Hs of backbone NH3."""
-    atom_indices = map_atom_indices(pdb_file)
     NH3_dist_constraints = []
     for H_name in ["H", "H2", "H3"]:
-        NH3_dist_constraints.append(([atom_indices["N"], atom_indices[H_name]], dist))
+        NH3_dist_constraints.append(([atoms_indices["N"], atoms_indices[H_name]], dist))
     return NH3_dist_constraints
 
 
 def gen_sidechain_constraints(
     dunbrack_data: dict[str, Any],
-    pdb_file: PathLike | str,
+    atoms_indices: dict[str, int],
 ) -> tuple[list[tuple[list[int], float]] | None, list[int]]:
     """Generate the dihedral contraints and fixed atoms for the specified sidechain-H.
     Args:
         dunbrack_data: data with angles extracted from the Dunbrack library
-        pdb_file: file of the sidechain-H geometry
+        atom_indices: mapping of PDB atom names to their 1-based row indices
     Returns:
         Constraints for the sidechain-H optimisation (1-based atom indices):
             - chi2 (and chi3 for proline) dihedral constraints tuples
             - list of fixed atom indices
     """
     letter = dunbrack_data["letter"]
-    atom_indices = map_atom_indices(pdb_file)
 
     # Dihedral constraint(s) for the H(s) to optimise
     if letter in ["C", "S", "T", "V"]:
         dihedral_constraints = None
     else:
-        HCA = atom_indices["HCA"]
-        CB = idx_atoms_at_position(atom_indices, "B")[0]
-        G = idx_atoms_at_position(atom_indices, "G")[0]
-        D = idx_atoms_at_position(atom_indices, "D")[0]
+        HCA = atoms_indices["HCA"]
+        CB = idx_atoms_at_position(atoms_indices, "B")[0]
+        G = idx_atoms_at_position(atoms_indices, "G")[0]
+        D = idx_atoms_at_position(atoms_indices, "D")[0]
         dihedral_constraints = [([HCA, CB, G, D], dunbrack_data["chi2"])]
         if letter == "P":
-            HN = atom_indices["HN"]
+            HN = atoms_indices["HN"]
             dihedral_constraints.append(([CB, G, D, HN], dunbrack_data["chi3"]))
 
     # Sidechain atoms are fixed except the H(s) on the same C as the H replacing the backbone
     atoms_to_opt = {"HCA", "HB", "HB2", "HB3"}
     if letter == "P":
         atoms_to_opt.update({"HN", "HD2", "HD3"})
-    fixed_atoms = [idx for key, idx in atom_indices.items() if key not in atoms_to_opt]
+    fixed_atoms = [idx for key, idx in atoms_indices.items() if key not in atoms_to_opt]
 
     return dihedral_constraints, fixed_atoms
 
@@ -413,15 +410,16 @@ def get_opt_structures(
         shutil.rmtree(whole_folder)
     whole_folder.mkdir(parents=True)
 
+    whole_atoms_indices = map_atom_indices(start_rotamer_file)
     dihedral_constraints = gen_dihedral_constraints(
         dunbrack_data,
-        pdb_file=start_rotamer_file,
+        whole_atoms_indices,
         constrain_N_CA_C_O_diangle=constrain_N_CA_C_O_diangle,
     )
     letter = dunbrack_data["letter"]
     # Force the Hs to stay on the NH3 for some rotamers which otherwise optimise to wrong structures
     if charge == -1 or letter == "N":
-        NH3_dist_constraints = gen_NH3_dist_constraints(pdb_file=start_rotamer_file)
+        NH3_dist_constraints = gen_NH3_dist_constraints(whole_atoms_indices)
     else:
         NH3_dist_constraints = None
 
@@ -455,13 +453,13 @@ def get_opt_structures(
     start_sidechain_file = sidechain_folder / ("sidechain-H_start" + file_format)
     is_pro = dunbrack_data["res"] == "PRO"
     replace_backbone(whole_folder / xtbopt_file, start_sidechain_file, is_pro=is_pro)
+    sidechain_atoms_indices = map_atom_indices(start_sidechain_file)
 
     # Optimise the Hs in the sidechain-H structure
     sidechain_dihedral_constraints, sidechain_fixed_atoms = gen_sidechain_constraints(
         dunbrack_data,
-        pdb_file=start_sidechain_file,
+        sidechain_atoms_indices,
     )
-
     run_constraint_xtb(
         geo_file=start_sidechain_file,
         path_run=sidechain_folder,
@@ -493,6 +491,7 @@ def get_opt_structures(
         coord_whole,
         el_sidechain,
         coord_sidechain,
+        sidechain_atoms_indices,
     )
 
 
