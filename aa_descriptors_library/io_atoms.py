@@ -46,16 +46,31 @@ def convert_file(
         Path(input_file).unlink()
 
 
-def map_atom_indices(pdb_file: PathLike | str) -> dict[str, int]:
-    """Map atom names to their indices from a PDB file."""
+def map_atom_indices(
+    pdb_file: PathLike | str, zero_indexed=False, by_serial=False
+) -> dict[str, int]:
+    """Map atom names to their indices from a PDB file.
+    Args:
+        pdb_file: path to the PDB file
+        zero_indexed: whether to use 0-based indexing (default: 1-based indexing)
+        by_serial: whether to return the PDB atom serial numbers (default: indices following line order)
+    Returns:
+        Dictionary mapping atom names to their indices"""
     mapping = {}
     with open(pdb_file) as f:
-        for line in f:
-            if line.startswith("ATOM"):
-                parts = line.split()
-                atom_index = int(parts[1])
-                atom_name = parts[2]
-                mapping[atom_name] = atom_index
+        lines = f.readlines()
+    atom_lines = [line for line in lines if line.startswith("ATOM")]
+
+    for idx, line in enumerate(atom_lines):
+        if line.startswith("ATOM"):
+            parts = line.split()
+            atom_name = parts[2]
+            if by_serial:
+                atom_serial = int(parts[1])
+                mapping[atom_name] = atom_serial
+            else:
+                mapping[atom_name] = idx if zero_indexed else idx + 1
+
     return mapping
 
 
