@@ -13,6 +13,7 @@ def init_sql_db(db_path: str | Path) -> None:
         db_path: path to the SQLite database file
     """
     db_path = Path(db_path)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
     with sqlite3.connect(db_path) as conn:
         cur = conn.cursor()
         cur.execute(

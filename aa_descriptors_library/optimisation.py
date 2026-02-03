@@ -1,5 +1,6 @@
 from Bio.PDB import PDBIO
 from morfeus.typing import Array1DStr, Array2DFloat
+import numpy as np
 from openmm.app import PDBFile, Modeller
 import os
 from os import PathLike
@@ -485,6 +486,10 @@ def get_opt_structures(
     # Save the optimised sidechain-H and whole rotamer in dictionary
     el_whole, coord_whole = read_geo(whole_folder / xtbopt_file)
     el_sidechain, coord_sidechain = read_geo(sidechain_folder / xtbopt_file)
+
+    if file_format == ".pdb":
+        coord_whole = np.round(coord_whole, decimals=3)
+        coord_sidechain = np.round(coord_sidechain, decimals=3)
 
     return (
         el_whole,

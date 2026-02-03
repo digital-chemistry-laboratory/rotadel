@@ -17,7 +17,7 @@ def read_geo(geo_file: PathLike | str) -> tuple[Array1DStr, Array2DFloat]:
         structure = PDBParser(QUIET=True).get_structure("x", geo_file)
         atoms = list(structure.get_atoms())
         elements = np.array([a.element.strip() for a in atoms])
-        coordinates = np.array([a.coord for a in atoms])
+        coordinates = np.array([a.coord for a in atoms], dtype=np.float64)
     else:
         raise ValueError(f"Unsupported file format: {geo_file.suffix}")
 
