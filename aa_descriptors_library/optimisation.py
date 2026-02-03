@@ -526,7 +526,11 @@ def has_structure_problems(
         m = MolFromXYZFile(str(geo_file))
     else:
         raise ValueError("Geometry file must be either PDB or XYZ.")
-    DetermineBonds(m, charge=charge)
+
+    try:
+        DetermineBonds(m, charge=charge)
+    except ValueError as e:
+        return f"RDKit could not determine bonds: {str(e)}"
 
     # Check number of fragments
     if check_fragments:
