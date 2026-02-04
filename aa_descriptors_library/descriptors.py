@@ -39,6 +39,7 @@ def clean_atomic_descriptors(
     morfeus_dict: dict[int, np.float64],
     sidechain_atoms_mapping: dict[str, int],
     res: str,
+    decimals: int | None = None,
     is_bond_order: bool = False,
 ) -> dict[int, np.float64]:
     """Rewrite the dictionary returned by Morfeus to remove the permutable hydrogens.
@@ -46,6 +47,7 @@ def clean_atomic_descriptors(
         morfeus_descriptor: dictionary of the atomic descriptor calculated by Morfeus
         sidechain_atoms_mapping: mapping of PDB atom names to their 1-based row indices
         res: three-letter code of the amino acid residue
+        decimals: number of decimals to round the values to
         is_bond_order: whether the descriptor is bond orders
     Returns:
         Dictionary with only the non-permutable sidechain atoms (1-indexed)
@@ -60,10 +62,12 @@ def clean_atomic_descriptors(
         for key, value in morfeus_dict.items():
             atom_1, atom_2 = map(int, key.split(", "))
             if atom_1 in indices_to_keep and atom_2 in indices_to_keep:
-                output_dict[key] = value
+                output_dict[key] = (
+                    round(value, decimals) if decimals is not None else value
+                )
     else:
         output_dict = {
-            int(idx): value
+            int(idx): round(value, decimals) if decimals is not None else value
             for idx, value in morfeus_dict.items()
             if int(idx) in indices_to_keep
         }
@@ -96,7 +100,7 @@ def calc_descriptors(
     bv = BuriedVolume(
         sidechain_el, sidechain_coords, metal_index=1
     )  # 1-indexed in Morfeus
-    descriptors["v_bur"] = bv.fraction_buried_volume
+    descriptors["v_bur"] = round(bv.fraction_buried_volume, 4)
 
     # Solvent accessible surface area
     sasa = SASA(sidechain_el, sidechain_coords)
@@ -108,15 +112,15 @@ def calc_descriptors(
             sasa_unpolar += sasa_atom
         else:
             sasa_polar += sasa_atom
-    descriptors["sasa_tot"] = sasa.area
-    descriptors["sasa_polar"] = sasa_polar
-    descriptors["sasa_unpolar"] = sasa_unpolar
+    descriptors["sasa_tot"] = round(sasa.area, 2)
+    descriptors["sasa_polar"] = round(sasa_polar, 2)
+    descriptors["sasa_unpolar"] = round(sasa_unpolar, 2)
 
     # Sterimol parameters
     sterimol = Sterimol(sidechain_el, sidechain_coords, dummy_index=1, attached_index=2)
-    descriptors["sterimol_l"] = sterimol.L_value
-    descriptors["sterimol_b1"] = sterimol.B_1_value
-    descriptors["sterimol_b5"] = sterimol.B_5_value
+    descriptors["sterimol_l"] = round(sterimol.L_value, 3)
+    descriptors["sterimol_b1"] = round(sterimol.B_1_value, 3)
+    descriptors["sterimol_b5"] = round(sterimol.B_5_value, 3)
 
     # Cone angle
     # Needs to push away the central atom (H replacing alpha carbon)
@@ -127,30 +131,33 @@ def calc_descriptors(
     cone_angle = ConeAngle(
         sidechain_el, np.asarray(adjusted_coord, dtype=np.float64), atom_1=1
     )
-    descriptors["cone_angle"] = cone_angle.cone_angle
+    descriptors["cone_angle"] = round(cone_angle.cone_angle, 2)
 
     # Dispersion descriptor
     dispersion = Dispersion(sidechain_el, sidechain_coords)
-    descriptors["p_int"] = dispersion.p_int
+    descriptors["p_int"] = round(dispersion.p_int, 3)
 
     # xTB descriptors
     xtb = XTB(sidechain_el, sidechain_coords, charge=charge, solvent=solvent)
-    descriptors["homo"] = xtb.get_homo()
-    descriptors["lumo"] = xtb.get_lumo()
-    descriptors["electron_affinity"] = xtb.get_ea()
-    descriptors["ionization_potential"] = xtb.get_ip()
-    descriptors["electronegativity"] = xtb.get_electronegativity()
+    descriptors["homo"] = round(xtb.get_homo(), 5)
+    descriptors["lumo"] = round(xtb.get_lumo(), 5)
+    descriptors["electron_affinity"] = round(xtb.get_ea(), 4)
+    descriptors["ionization_potential"] = round(xtb.get_ip(), 4)
+    descriptors["electronegativity"] = round(xtb.get_electronegativity(), 5)
     descriptors["hardness"] = xtb.get_hardness()
     descriptors["dipole"] = xtb.get_dipole_moment()
     descriptors["global_nucleophilicity"] = xtb.get_global_descriptor("nucleophilicity")
-    descriptors["global_electrophilicity"] = xtb.get_global_descriptor(
-        "electrophilicity"
+    descriptors["global_electrophilicity"] = round(
+        xtb.get_global_descriptor("electrophilicity"), 5
     )
     descriptors["local_nucleophilicity"] = clean_atomic_descriptors(
         xtb.get_fukui("local_nucleophilicity"), sidechain_atoms_mapping, res
     )
     descriptors["local_electrophilicity"] = clean_atomic_descriptors(
-        xtb.get_fukui("local_electrophilicity"), sidechain_atoms_mapping, res
+        xtb.get_fukui("local_electrophilicity"),
+        sidechain_atoms_mapping,
+        res,
+        decimals=5,
     )
     descriptors["fukui_minus"] = clean_atomic_descriptors(
         xtb.get_fukui("nucleophilicity"), sidechain_atoms_mapping, res
@@ -159,13 +166,14 @@ def calc_descriptors(
         xtb.get_fukui("electrophilicity"), sidechain_atoms_mapping, res
     )
     descriptors["partial_charges"] = clean_atomic_descriptors(
-        xtb.get_charges(), sidechain_atoms_mapping, res
+        xtb.get_charges(), sidechain_atoms_mapping, res, decimals=5
     )
     bond_orders = xtb.get_bond_orders()
     descriptors["bond_orders"] = clean_atomic_descriptors(
         {f"{k[0]}, {k[1]}": v for k, v in bond_orders.items()},
         sidechain_atoms_mapping,
         res,
+        decimals=5,
         is_bond_order=True,
     )
 
