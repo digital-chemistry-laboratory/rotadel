@@ -19,6 +19,7 @@ from aa_descriptors_library.io_atoms import (
     convert_file,
     idx_atoms_at_position,
     map_atom_indices,
+    neutralise_termini,
     read_geo,
     replace_backbone,
 )
@@ -278,6 +279,7 @@ def start_rotamer_geo(
         None, writes the non-optimised rotamer geometry to the output file
     """
     output_file = Path(output_file)
+    output_file.parent.mkdir(parents=True, exist_ok=True)
     if output_file.suffix == ".pdb":
         convert_to_xyz = False
     elif output_file.suffix == ".xyz":
@@ -362,6 +364,9 @@ def start_rotamer_geo(
     modeller.addHydrogens(variants=[species])
     PDBFile.writeFile(modeller.topology, modeller.positions, file=str(pdb_file))
 
+    # Manually transform zwitterion to neutral form
+    neutralise_termini(pdb_file)
+
     # Convert PDB to XYZ file with Open Babel
     if convert_to_xyz:
         convert_file(pdb_file, output_file=output_file)
@@ -376,6 +381,7 @@ def get_opt_structures(
     tautomer: str | None = None,
     rotamer_id: str = "",
     constrain_N_CA_C_O_diangle: bool = True,
+    constrain_NH3_dist: bool = False,
 ) -> tuple[
     Array1DStr,
     Array2DFloat,
@@ -392,6 +398,7 @@ def get_opt_structures(
         tautomer: tautomer for histidine (used for structure checking if `check` is True)
         rotamer_id: ID of the rotamer (used for error messages if `check` is True)
         constrain_N_CA_C_O_diangle: whether to constrain the N-CA-C=O dihedral angle according to psi value
+        constrain_NH3_dist: whether to constrain the distances between N and Hs of backbone NH3+
     Returns:
         el_whole, coord_whole, el_sidechain, coord_sidechain: elements and coordinates of the optimised structures
     """
@@ -418,17 +425,17 @@ def get_opt_structures(
         constrain_N_CA_C_O_diangle=constrain_N_CA_C_O_diangle,
     )
     letter = dunbrack_data["letter"]
-    # Force the Hs to stay on the NH3 for some rotamers which otherwise optimise to wrong structures
-    if charge == -1 or letter == "N":
-        NH3_dist_constraints = gen_NH3_dist_constraints(whole_atoms_indices)
-    else:
-        NH3_dist_constraints = None
+
+    if constrain_NH3_dist:
+        # Force the Hs to stay on the NH3 for some rotamers which otherwise optimise to wrong structures
+        if charge == -1 or letter == "N":
+            NH3_dist_constraints = gen_NH3_dist_constraints(whole_atoms_indices)
 
     run_constraint_xtb(
         geo_file=start_rotamer_file,
         path_run=whole_folder,
         dihedral_constraints=dihedral_constraints,
-        distance_constraints=NH3_dist_constraints,
+        distance_constraints=NH3_dist_constraints if constrain_NH3_dist else None,
         charge=charge,
         fc=1.0,
     )

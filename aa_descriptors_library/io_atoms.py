@@ -123,6 +123,7 @@ def rows_to_pdb_format(atom_rows: list[list[str]], add_end=True) -> str:
     for i, row in enumerate(atom_rows, 1):
         row[1] = str(i)
 
+    # PDB row format: ATOM serial name resName chainID resSeq x y z [occ] [temp] [element]
     def format_atom_row(atom_row: list[str]) -> str:
         rec_type = atom_row[0]
         serial = int(atom_row[1])
@@ -145,6 +146,68 @@ def rows_to_pdb_format(atom_rows: list[list[str]], add_end=True) -> str:
         out_lines.append("END")
 
     return "\n".join(out_lines) + "\n"
+
+
+def neutralise_termini(
+    input_pdb: Path | str, output_pdb: Path | str | None = None
+) -> None:
+    """Transform NH3+ terminus into NH2 and COO- terminus into COOH in a PDB file.
+    Args:
+        input_pdb: path to the input PDB file
+        output_pdb: path to the output PDB file (if None, overwrite input file)
+    Returns:
+        None, writes the modified structure to the output file
+    """
+    if output_pdb is None:
+        output_pdb = input_pdb
+
+    lines = open(input_pdb).read().splitlines(keepends=True)
+    tail_lines = [line for line in lines if not line.startswith("ATOM")][1:]
+    atom_rows = [line.split() for line in lines if line.startswith("ATOM")]
+
+    # NH3+ -> NH2
+    new_atom_rows = [row for row in atom_rows if row[2] != "H3"]
+
+    # COO- -> COOH
+    # HXT coords at 109° from C-OXT bond, planar to O-C-OXT, OXT-HXT bond 0.98 Å
+    def extract_xyz(atom_rows, atom_name):
+        atom_row = next((row for row in atom_rows if row[2] == atom_name), None)
+        return np.array([float(atom_row[6]), float(atom_row[7]), float(atom_row[8])])
+
+    C_xyz = extract_xyz(atom_rows, "C")
+    O_xyz = extract_xyz(atom_rows, "O")
+    OXT_xyz = extract_xyz(atom_rows, "OXT")
+    u = C_xyz - OXT_xyz
+    u /= np.linalg.norm(u)
+    w = O_xyz - OXT_xyz
+    # Vector normal to O-C-OXT plane
+    n = np.cross(u, w)
+    n /= np.linalg.norm(n) + 1e-12
+    # Vector in-plane orthogonal to u
+    p = np.cross(n, u)
+    p /= np.linalg.norm(p) + 1e-12
+    # Angle C-OXT-HXT
+    theta = np.deg2rad(109.0)
+    d1 = np.cos(theta) * u + np.sin(theta) * p
+    d2 = np.cos(theta) * u - np.sin(theta) * p
+    w /= np.linalg.norm(w) + 1e-12
+    # HXT on same side as C=O
+    d = d1 if np.dot(d1, w) > np.dot(d2, w) else d2
+    # New HXT row
+    HXT_row = new_atom_rows[-1].copy()
+    HXT_row[2] = "HXT"
+    HXT_xyz = OXT_xyz + 0.98 * d
+    HXT_row[6], HXT_row[7], HXT_row[8] = (
+        f"{HXT_xyz[0]:.3f}",
+        f"{HXT_xyz[1]:.3f}",
+        f"{HXT_xyz[2]:.3f}",
+    )
+    HXT_row[-1] = "H"
+    new_atom_rows.append(HXT_row)
+
+    pdb_str = rows_to_pdb_format(new_atom_rows, add_end=False) + "".join(tail_lines)
+    with open(output_pdb, "w") as f:
+        f.write(pdb_str)
 
 
 def replace_backbone(
@@ -182,10 +245,10 @@ def _replace_backbone_pdb(
     atom_rows = [line.split() for line in lines if line.startswith("ATOM")]
 
     if is_pro:
-        atoms_to_delete = {"H", "H1", "H2", "H3", "HA", "C", "O", "OXT"}
+        atoms_to_delete = {"H", "H1", "H2", "H3", "HA", "C", "O", "OXT", "HXT"}
         atoms_to_replace_by_H = {"N", "CA"}
     else:
-        atoms_to_delete = {"N", "H", "H1", "H2", "H3", "HA", "C", "O", "OXT"}
+        atoms_to_delete = {"N", "H", "H1", "H2", "H3", "HA", "C", "O", "OXT", "HXT"}
         atoms_to_replace_by_H = {"CA"}
 
     new_atom_rows = []
@@ -208,8 +271,8 @@ def _replace_backbone_pdb(
 
     pdb_str = rows_to_pdb_format(new_atom_rows)
 
-    with open(output_file, "w") as output_file:
-        output_file.write(pdb_str)
+    with open(output_file, "w") as f:
+        f.write(pdb_str)
 
 
 def _replace_backbone_xyz(
