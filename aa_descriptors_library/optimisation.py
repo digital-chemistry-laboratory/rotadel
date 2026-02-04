@@ -34,7 +34,7 @@ from aa_descriptors_library import config
 def gen_dihedral_constraints(
     dunbrack_data: dict[str, Any],
     atoms_indices: dict[str, int],
-    constrain_N_CA_C_O_diangle: bool = True,
+    constrain_N_CA_C_O_diangle: bool = False,
 ) -> list[tuple[list[int], float]]:
     """Generate the dihedral contraints for the specified whole rotamer.
     Args:
@@ -266,7 +266,7 @@ def start_rotamer_geo(
     output_file: PathLike | str,
     charge: int,
     tautomer: str = None,
-    set_N_CA_C_O_diangle: bool = True,
+    add_rotation_O: float = 0.0,
 ) -> None:
     """Build initial rotamer geometry from Dunbrack dihedral angles.
     Args:
@@ -274,7 +274,7 @@ def start_rotamer_geo(
         output_file: path to file to create, either PDB or XYZ
         charge: charge of the rotamer
         tautomer: tautomer of the rotamer (only for histidine, either 'D' or 'E')
-        set_N_CA_C_O_diangle: whether to set the N-CA-C=O dihedral angle according to psi value
+        add_rotation_O: optional rotation to add to the N-CA-C=O dihedral angle
     Returns:
         None, writes the non-optimised rotamer geometry to the output file
     """
@@ -293,8 +293,7 @@ def start_rotamer_geo(
     geo = Geometry.geometry(letter)
     geo.phi = dunbrack_data["phi"]
     geo.psi_im1 = dunbrack_data["psi"]
-    if set_N_CA_C_O_diangle:
-        geo.N_CA_C_O_diangle = dunbrack_data["psi"] - 180.0
+    geo.N_CA_C_O_diangle += add_rotation_O
     if letter == "R":
         geo.N_CA_CB_CG_diangle = dunbrack_data["chi1"]
         geo.CA_CB_CG_CD_diangle = dunbrack_data["chi2"]
@@ -380,7 +379,7 @@ def get_opt_structures(
     check: bool = True,
     tautomer: str | None = None,
     rotamer_id: str = "",
-    constrain_N_CA_C_O_diangle: bool = True,
+    constrain_N_CA_C_O_diangle: bool = False,
     constrain_NH3_dist: bool = False,
 ) -> tuple[
     Array1DStr,

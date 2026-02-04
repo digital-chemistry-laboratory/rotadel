@@ -123,14 +123,15 @@ class Rotamer:
         """Optimise the rotamer and sidechain-H geometries."""
         starting_rotamer_file = self._run_path / "rotamer_start.pdb"
         max_attempts = 3 if rerun_failed else 1
-        constrain_N_CA_C_O_diangle = True
 
-        for attempt in range(max_attempts):
+        # If structure problems, try rotating the COO group
+        for add_angle in [0, 60, 120, 0]:
             start_rotamer_geo(
                 dunbrack_data=self._dunbrack_data,
                 output_file=starting_rotamer_file,
                 charge=self._charge,
                 tautomer=self._tautomer,
+                add_rotation_O=add_angle,
             )
             start_problems = has_structure_problems(
                 starting_rotamer_file,
@@ -141,21 +142,11 @@ class Rotamer:
                 check_fragments=False,
                 check_chemistry=False,
             )
-            if start_problems:
-                start_rotamer_geo(
-                    dunbrack_data=self._dunbrack_data,
-                    output_file=starting_rotamer_file,
-                    charge=self._charge,
-                    tautomer=self._tautomer,
-                    set_N_CA_C_O_diangle=False,
-                )
+            if start_problems is None:
+                break
 
+        for attempt in range(1, max_attempts + 1):
             try:
-                if attempt > 0 and (
-                    (self._dunbrack_data["letter"] == "H" and self._charge == +1)
-                    or (self._dunbrack_data["letter"] == "D" and self._charge == 0)
-                ):
-                    constrain_N_CA_C_O_diangle = False
                 (
                     el_whole,
                     coord_whole,
@@ -169,18 +160,17 @@ class Rotamer:
                     start_rotamer_file=starting_rotamer_file,
                     tautomer=self._tautomer,
                     rotamer_id=self._key,
-                    constrain_N_CA_C_O_diangle=constrain_N_CA_C_O_diangle,
                 )
+                break
             except Exception:
-                if attempt == max_attempts - 1:
+                if attempt == max_attempts:
                     raise
-                continue
 
-            self._rotamer_elements = el_whole
-            self._rotamer_coordinates = coord_whole
-            self._sidechainH_elements = el_sidechain
-            self._sidechainH_coordinates = coord_sidechain
-            self._sidechainH_mapping = sidechain_atoms_indices
+        self._rotamer_elements = el_whole
+        self._rotamer_coordinates = coord_whole
+        self._sidechainH_elements = el_sidechain
+        self._sidechainH_coordinates = coord_sidechain
+        self._sidechainH_mapping = sidechain_atoms_indices
 
     def calc_descriptors(self) -> None:
         """Calculate the descriptors on the sidechain-H."""
