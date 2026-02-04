@@ -51,7 +51,7 @@ class Rotamer:
             for _, existing_rotamer in content.items():
                 same_chi_angles: bool = all(
                     self._dunbrack_data[field] == existing_rotamer[field]
-                    for field in ["res", "psi", "chi1", "chi2", "chi3", "chi4"]
+                    for field in ["res", "chi1", "chi2", "chi3", "chi4"]
                 )
                 same_charge: bool = self._charge == existing_rotamer["charge"]
                 same_tautomer: bool = self._tautomer == existing_rotamer["tautomer"]
@@ -81,13 +81,12 @@ class Rotamer:
             """
             SELECT rotamer_id, descriptors
             FROM rotamers_data
-            WHERE res = ? AND psi IS ? AND chi1 IS ? AND chi2 IS ? AND chi3 IS ? AND chi4 IS ?
+            WHERE res = ? AND chi1 IS ? AND chi2 IS ? AND chi3 IS ? AND chi4 IS ?
             AND charge = ? AND tautomer IS ?
             LIMIT 1
         """,
             (
                 self._dunbrack_data["res"],
-                self._dunbrack_data.get("psi"),
                 self._dunbrack_data.get("chi1"),
                 self._dunbrack_data.get("chi2"),
                 self._dunbrack_data.get("chi3"),
