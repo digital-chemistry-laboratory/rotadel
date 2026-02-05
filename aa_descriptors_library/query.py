@@ -44,6 +44,7 @@ def query_closest(
     def compute_chi_from_res(traj, res_nb, which_chi):
         # MDTraj functions compute all chi_i present in the pdb
         compute_chi_fct = {
+            "1": md.compute_chi1,
             "2": md.compute_chi2,
             "3": md.compute_chi3,
             "4": md.compute_chi4,
@@ -67,6 +68,7 @@ def query_closest(
         return chi
 
     nb_chis = NUMBER_OF_CHI_ANGLES[THREE_TO_ONE_AA[target_name]]
+    target_chi1 = compute_chi_from_res(traj, target_res_nb, "1")
     target_chi2 = (
         compute_chi_from_res(traj, target_res_nb, "2") if nb_chis >= 2 else None
     )
@@ -80,7 +82,7 @@ def query_closest(
     closest_rot = {
         "rotamer_id": None,
         "chis_distance": float("inf"),
-        "chis": {"chi2": None, "chi3": None, "chi4": None},
+        "chis": {"chi1": None, "chi2": None, "chi3": None, "chi4": None},
         "descriptors": None,
     }
     already_calculated = set()
@@ -89,26 +91,32 @@ def query_closest(
         cur = conn.cursor()
         cur.execute(
             """
-            SELECT rotamer_id, chi2, chi3, chi4, descriptors
+            SELECT rotamer_id, chi1, chi2, chi3, chi4, descriptors
             FROM rotamers_data where res = ? AND charge = ? AND tautomer IS ?
             """,
             (target_name, charge, tautomer),
         )
-        for rotamer_id, chi2, chi3, chi4, descriptors in cur.fetchall():
-            if (chi2, chi3, chi4) in already_calculated:
+        for rotamer_id, chi1, chi2, chi3, chi4, descriptors in cur.fetchall():
+            if (chi1, chi2, chi3, chi4) in already_calculated:
                 continue
-            already_calculated.add((chi2, chi3, chi4))
+            already_calculated.add((chi1, chi2, chi3, chi4))
             # Ignore chi3 from Dunbrack library for proline as normally defined with 2 chis
             if target_name == "PRO":
                 chi3 = None
             chis_dist = distance_angles(
-                [target_chi2, target_chi3, target_chi4], [chi2, chi3, chi4]
+                [target_chi1, target_chi2, target_chi3, target_chi4],
+                [chi1, chi2, chi3, chi4],
             )
             if chis_dist < closest_rot["chis_distance"]:
                 closest_rot = {
                     "rotamer_id": rotamer_id,
                     "chis_distance": chis_dist,
-                    "chis": {"chi2": chi2, "chi3": chi3, "chi4": chi4},
+                    "chis": {
+                        "chi1": chi1,
+                        "chi2": chi2,
+                        "chi3": chi3,
+                        "chi4": chi4,
+                    },
                     "descriptors": json.loads(descriptors),
                 }
 
