@@ -117,13 +117,24 @@ def xyz_string(elements: Array1DStr, coordinates: Array2DFloat) -> str:
     return xyz_string
 
 
-def rows_to_pdb_format(atom_rows: list[list[str]], add_end=True) -> str:
-    """Format an atom row for a PDB file to ensure proper spacing."""
+def rows_to_pdb_format(
+    atom_rows: list[list[str]],
+    ter_row: list[str] | None = None,
+    add_end=True,
+) -> str:
+    """Format rows for a PDB file to ensure proper spacing.
+    Args:
+        atom_rows: list of ATOM rows, where each row is a list of split columns
+        ter_row: optional TER row, where the row is a list of split columns
+        add_end: whether to add an END line
+    Returns:
+        String with the properly formatted PDB content
+    """
     # Renumber atom serials
     for i, row in enumerate(atom_rows, 1):
         row[1] = str(i)
 
-    # PDB row format: ATOM serial name resName chainID resSeq x y z [occ] [temp] [element]
+    # PDB atom line format: ATOM serial name resName chainID resSeq x y z [occ] [temp] [element]
     def format_atom_row(atom_row: list[str]) -> str:
         rec_type = atom_row[0]
         serial = int(atom_row[1])
@@ -142,6 +153,10 @@ def rows_to_pdb_format(atom_rows: list[list[str]], add_end=True) -> str:
         )
 
     out_lines = [format_atom_row(row) for row in atom_rows]
+    if ter_row:
+        out_lines.append(
+            f"{ter_row[0]:<6}{len(atom_rows)+1:>5}{ter_row[2]:>9}{ter_row[3]:>2}{ter_row[4]:>4}"
+        )
     if add_end:
         out_lines.append("END")
 
@@ -156,7 +171,7 @@ def neutralise_termini(
         input_pdb: path to the input PDB file
         output_pdb: path to the output PDB file (if None, overwrite input file)
     Returns:
-        None, writes the modified structure to the output file
+        None, write a PDB file with the edited structure
     """
     if output_pdb is None:
         output_pdb = input_pdb
@@ -244,12 +259,11 @@ def _replace_backbone_pdb(
         lines = file.readlines()
     atom_rows = [line.split() for line in lines if line.startswith("ATOM")]
 
+    atoms_to_delete = {"N", "H", "H1", "H2", "H3", "HA", "C", "O", "OXT", "HXT"}
+    atoms_to_replace_by_H = {"CA"}
     if is_pro:
-        atoms_to_delete = {"H", "H1", "H2", "H3", "HA", "C", "O", "OXT", "HXT"}
-        atoms_to_replace_by_H = {"N", "CA"}
-    else:
-        atoms_to_delete = {"N", "H", "H1", "H2", "H3", "HA", "C", "O", "OXT", "HXT"}
-        atoms_to_replace_by_H = {"CA"}
+        atoms_to_delete.remove("N")
+        atoms_to_replace_by_H.add("N")
 
     new_atom_rows = []
     for row in atom_rows:
