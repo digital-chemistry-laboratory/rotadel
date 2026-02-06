@@ -291,8 +291,6 @@ def start_rotamer_geo(
     # Results in a PDB file without hydrogens
     letter = dunbrack_data["letter"]
     geo = Geometry.geometry(letter)
-    geo.phi = dunbrack_data["phi"]
-    geo.psi_im1 = dunbrack_data["psi"]
     geo.N_CA_C_O_diangle += add_rotation_O
     if letter == "R":
         geo.N_CA_CB_CG_diangle = dunbrack_data["chi1"]
