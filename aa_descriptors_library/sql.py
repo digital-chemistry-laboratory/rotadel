@@ -50,12 +50,17 @@ def init_sql_db(db_path: str | Path) -> None:
     conn.commit()
 
 
-def display_rotamer_data(cursor: sqlite3.Cursor, rotamer_id: str) -> None:
+def display_rotamer_data(rotamer_id: str, sql_path: str | Path | None = None) -> None:
     """Display rotamer data from the SQL database.
     Args:
-        cursor: SQLite cursor object
         rotamer_id: ID of the rotamer to query
+        sql_path: path to the SQL database file
     """
+    if sql_path is None:
+        sql_path = SQL_PATH
+
+    with sqlite3.connect(sql_path) as conn:
+        cursor = conn.cursor()
     cursor.execute("SELECT * FROM rotamers_data WHERE rotamer_id = ?;", (rotamer_id,))
     columns_names = [desc[0] for desc in cursor.description]
     for row in cursor.fetchall():
@@ -95,16 +100,23 @@ def print_xyz_from_sql(
 
 
 def get_xyz_from_sql(
-    cursor: sqlite3.Cursor, table_name: str, rotamer_id: str
+    table_name: str,
+    rotamer_id: str,
+    sql_path: str | Path | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Get XYZ coordinates of specified rotamer from SQL database.
     Args:
-        cursor: SQLite cursor object
         table_name: name of the table containing xyz data
         rotamer_id: ID of the rotamer to query
+        sql_path: path to the SQL database file
     Returns:
         Elements and xyz coordinates of the rotamer
     """
+    if sql_path is None:
+        sql_path = SQL_PATH
+
+    with sqlite3.connect(sql_path) as conn:
+        cursor = conn.cursor()
     cursor.execute(
         f"SELECT element, x, y, z FROM {table_name} WHERE rotamer_id = ? ORDER BY atom_idx;",
         (rotamer_id,),
@@ -154,3 +166,17 @@ def get_descriptors(
     df.insert(2, "tautomer", base["tautomer"].values)
 
     return df
+
+
+def get_descriptors_names(sql_path: str | Path | None = None) -> list[str]:
+    """Get the names of all descriptors available in the SQL database."""
+    if sql_path is None:
+        sql_path = SQL_PATH
+
+    with sqlite3.connect(sql_path) as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT descriptors FROM rotamers_data LIMIT 1")
+        row = cur.fetchone()
+        descriptors_names = list(json.loads(row[0]).keys())
+
+    return descriptors_names
