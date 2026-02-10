@@ -12,6 +12,7 @@ from aa_descriptors_library.sql import get_xyz_from_sql
 from aa_descriptors_library.constants import (
     NDRD_PATH,
     NUMBER_OF_CHI_ANGLES,
+    ONE_TO_THREE_AA,
     SQL_PATH,
     THREE_TO_ONE_AA,
 )
@@ -181,9 +182,9 @@ def query_average(
 ) -> dict[str, float | dict]:
     """Calculate the weighted averaged descriptors for a given residue, charge, and tautomer.
     Args:
-        residue: three letter code of the amino acid type
-        left_neighbour: three letter code of the amino acid left from `residue`
-        right_neighbour: three letter code of the amino acid right from `residue`
+        residue: one or three letter(s) code of the amino acid type
+        left_neighbour: one or three letter(s) code of the amino acid left from `residue`
+        right_neighbour: one or three letter(s) code of the amino acid right from `residue`
         charge: charge of the residue
         tautomer: tautomer of the residue if applicable ("D" or "E" for histidine)
         sql_path: path to the SQL database file
@@ -191,12 +192,18 @@ def query_average(
     Returns:
         Dictionary with averaged descriptors weighted by the rotamers probability
     """
+    if len(residue) == 1:
+        residue = ONE_TO_THREE_AA[residue.upper()]
+    if left_neighbour is not None and len(left_neighbour) == 1:
+        left_neighbour = ONE_TO_THREE_AA[left_neighbour.upper()]
+    if right_neighbour is not None and len(right_neighbour) == 1:
+        right_neighbour = ONE_TO_THREE_AA[right_neighbour.upper()]
+
     if sql_path is None:
         sql_path = SQL_PATH
     if ndrd_path is None:
         ndrd_path = NDRD_PATH
 
-    residue = residue.upper()
     # Histidine requires charge and tautomer info for averaging atomic descriptors because atom mapping varies
     if residue == "HIS" and (charge is None or tautomer is None):
         raise ValueError("For histidine, both charge and tautomer must be specified.")
