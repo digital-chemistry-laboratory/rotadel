@@ -1,8 +1,12 @@
 import argparse
-import sqlite3
-from typing import Iterable
 from pathlib import Path
 from shutil import copyfile
+import sqlite3
+import time
+from typing import Iterable
+
+from aa_descriptors_library.constants import SQL_PATH
+from aa_descriptors_library.sql import count_rotamers_in_sql
 
 
 def parse_args():
@@ -25,15 +29,19 @@ def parse_args():
     return args.db_folder, args.merged_db_path
 
 
-def main(db_folder: Iterable[Path], merged_db_path: Path) -> None:
+def main(db_folder: Iterable[Path], merged_db_path: Path | str | None = None) -> None:
     """Merge multiple SQLite databases into a single one."""
+    start_time = time.perf_counter()
+
+    if merged_db_path is None:
+        merged_db_path = SQL_PATH
     merged_db_path = Path(merged_db_path)
     if merged_db_path.exists():
         raise FileExistsError(f"{merged_db_path} already exists.")
 
     db_files = sorted(Path(db_folder).glob("*.db"))
 
-    # Create merged DB from first file for the correct schema
+    # Create merged db from first file for the correct schema
     copyfile(db_files[0], merged_db_path)
 
     # Merge all other dbs
@@ -48,6 +56,13 @@ def main(db_folder: Iterable[Path], merged_db_path: Path) -> None:
                         f"INSERT INTO {table} VALUES ({placeholders})", rows
                     )
         merged_conn.commit()
+
+    # Print execution time and count in merged db
+    elapsed_seconds = time.perf_counter() - start_time
+    elapsed_minutes, remaining_seconds = divmod(elapsed_seconds, 60)
+    print("Executed in: " f"{int(elapsed_minutes)} min {remaining_seconds:05.2f} sec")
+    rotamer_count = count_rotamers_in_sql(merged_db_path)
+    print(f"Number of rotamers in merged database: {rotamer_count}")
 
 
 if __name__ == "__main__":

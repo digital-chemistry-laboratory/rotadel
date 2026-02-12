@@ -180,3 +180,15 @@ def get_descriptors_names(sql_path: str | Path | None = None) -> list[str]:
         descriptors_names = list(json.loads(row[0]).keys())
 
     return descriptors_names
+
+
+def count_rotamers_in_sql(sql_path: Path | str | None = None) -> int:
+    """Count the number of rotamers in the SQL database."""
+    if sql_path is None:
+        sql_path = SQL_PATH
+
+    with sqlite3.connect(sql_path) as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT rotamer_id FROM rotamers_data;")
+        rotamer_ids = [row[0] for row in cur.fetchall()]
+    return len(rotamer_ids)
