@@ -178,6 +178,10 @@ def calc_descriptors(
     # Bond orders - filter to keep only bonds detected by RDKit
     bond_orders = xtb.get_bond_orders()
     mol = Chem.MolFromXYZBlock(xyz_string(sidechain_el, sidechain_coords))
+    if res == "CYS" and charge == -1:
+        # Necessary in RDKit 2025.09.5 otherwise DetermineBonds fails
+        sg = [a for a in mol.GetAtoms() if a.GetSymbol() == "S"][0]
+        sg.SetFormalCharge(-1)
     DetermineBonds(mol, charge=charge)
     rdkit_bonds = {
         tuple(sorted((bond.GetBeginAtomIdx() + 1, bond.GetEndAtomIdx() + 1)))

@@ -533,6 +533,10 @@ def has_structure_problems(
         raise ValueError("Geometry file must be either PDB or XYZ.")
 
     try:
+        if aa_letter == "C" and charge == -1:
+            # Necessary in RDKit 2025.09.5 otherwise DetermineBonds fails
+            sg = [a for a in m.GetAtoms() if a.GetSymbol() == "S"][0]
+            sg.SetFormalCharge(-1)
         DetermineBonds(m, charge=charge)
     except ValueError as e:
         return f"RDKit could not determine bonds: {str(e)}"
