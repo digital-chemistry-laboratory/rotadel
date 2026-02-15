@@ -379,12 +379,7 @@ def get_opt_structures(
     rotamer_id: str = "",
     constrain_N_CA_C_O_diangle: bool = False,
     constrain_NH3_dist: bool = False,
-) -> tuple[
-    Array1DStr,
-    Array2DFloat,
-    Array1DStr,
-    Array2DFloat,
-]:
+) -> tuple[Array1DStr, Array2DFloat, Array1DStr, Array2DFloat, dict[str, int]]:
     """Get the optimised geometries of side chain (with the backbone being replaced by an H) and rotamer.
     Args:
         dunbrack_data: data with angles extracted from the Dunbrack library
@@ -397,7 +392,8 @@ def get_opt_structures(
         constrain_N_CA_C_O_diangle: whether to constrain the N-CA-C=O dihedral angle according to psi value
         constrain_NH3_dist: whether to constrain the distances between N and Hs of backbone NH3+
     Returns:
-        el_whole, coord_whole, el_sidechain, coord_sidechain: elements and coordinates of the optimised structures
+        elements and coordinates of the optimised structures,
+        and mapping of PDB atom names to their 1-based indices for side chain
     """
 
     run_folder = Path(run_folder)

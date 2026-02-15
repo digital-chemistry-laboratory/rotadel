@@ -41,8 +41,8 @@ def clean_atomic_descriptors(
     res: str,
     decimals: int | None = None,
     is_bond_order: bool = False,
-) -> dict[int, np.float64]:
-    """Rewrite the dictionary returned by Morfeus to remove the permutable hydrogens.
+) -> dict[str, np.float64]:
+    """Rewrite Morfeus dictionary to remove the permutable hydrogens and have atom names as keys.
     Args:
         morfeus_descriptor: dictionary of the atomic descriptor calculated by Morfeus
         sidechain_atoms_mapping: mapping of PDB atom names to their 1-based row indices
@@ -50,26 +50,29 @@ def clean_atomic_descriptors(
         decimals: number of decimals to round the values to
         is_bond_order: whether the descriptor is bond orders
     Returns:
-        Dictionary with only the non-permutable sidechain atoms (1-indexed)
+        Dictionary with only the non-permutable sidechain atoms and atom names as keys
     """
-    indices_to_keep = [
-        idx
-        for name, idx in sidechain_atoms_mapping.items()
-        if name in NON_PERMUTABLE_INDICES_SIDECHAIN[THREE_TO_ONE_AA[res.upper()]]
-    ]
+    atom_names_to_keep = set(
+        NON_PERMUTABLE_INDICES_SIDECHAIN[THREE_TO_ONE_AA[res.upper()]]
+    )
+    atom_index_to_name = {idx: name for name, idx in sidechain_atoms_mapping.items()}
     if is_bond_order:
         output_dict = {}
         for key, value in morfeus_dict.items():
-            atom_1, atom_2 = map(int, key.split(", "))
-            if atom_1 in indices_to_keep and atom_2 in indices_to_keep:
-                output_dict[key] = (
+            idx_1, idx_2 = map(int, key.split(", "))
+            name_1 = atom_index_to_name[idx_1]
+            name_2 = atom_index_to_name[idx_2]
+            if name_1 in atom_names_to_keep and name_2 in atom_names_to_keep:
+                output_dict[f"{name_1}, {name_2}"] = (
                     round(value, decimals) if decimals is not None else value
                 )
     else:
         output_dict = {
-            int(idx): round(value, decimals) if decimals is not None else value
+            atom_index_to_name[int(idx)]: (
+                round(value, decimals) if decimals is not None else value
+            )
             for idx, value in morfeus_dict.items()
-            if int(idx) in indices_to_keep
+            if atom_index_to_name[int(idx)] in atom_names_to_keep
         }
 
     return output_dict

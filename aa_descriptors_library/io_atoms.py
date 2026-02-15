@@ -55,7 +55,8 @@ def map_atom_indices(
         zero_indexed: whether to use 0-based indexing (default: 1-based indexing)
         by_serial: whether to return the PDB atom serial numbers (default: indices following line order)
     Returns:
-        Dictionary mapping atom names to their indices"""
+        Dictionary mapping atom names to their indices
+    """
     mapping = {}
     with open(pdb_file) as f:
         lines = f.readlines()
