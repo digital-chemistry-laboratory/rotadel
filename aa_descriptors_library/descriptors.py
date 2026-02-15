@@ -1,12 +1,15 @@
-import numpy as np
 from morfeus import BuriedVolume, SASA, Sterimol, ConeAngle, Dispersion, XTB
 from morfeus.typing import Array1DStr, Array2DFloat
+import numpy as np
+from rdkit import Chem
+from rdkit.Chem.rdDetermineBonds import DetermineBonds
 from typing import Any
 
 from aa_descriptors_library.constants import (
     NON_PERMUTABLE_INDICES_SIDECHAIN,
     THREE_TO_ONE_AA,
 )
+from aa_descriptors_library.io_atoms import xyz_string
 
 
 def move_central_atom(
@@ -171,9 +174,22 @@ def calc_descriptors(
     descriptors["partial_charges"] = clean_atomic_descriptors(
         xtb.get_charges(), sidechain_atoms_mapping, res, decimals=5
     )
+
+    # Bond orders - filter to keep only bonds detected by RDKit
     bond_orders = xtb.get_bond_orders()
+    mol = Chem.MolFromXYZBlock(xyz_string(sidechain_el, sidechain_coords))
+    DetermineBonds(mol, charge=charge)
+    rdkit_bonds = {
+        tuple(sorted((bond.GetBeginAtomIdx() + 1, bond.GetEndAtomIdx() + 1)))
+        for bond in mol.GetBonds()
+    }
+    bond_orders_filtered = {
+        pair: value
+        for pair, value in bond_orders.items()
+        if tuple(sorted(pair)) in rdkit_bonds
+    }
     descriptors["bond_orders"] = clean_atomic_descriptors(
-        {f"{k[0]}, {k[1]}": v for k, v in bond_orders.items()},
+        {f"{k[0]}, {k[1]}": v for k, v in bond_orders_filtered.items()},
         sidechain_atoms_mapping,
         res,
         decimals=5,
