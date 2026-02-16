@@ -19,14 +19,15 @@ def parse_args():
         help="Path to the folder containing the SQLite .db files to merge.",
     )
     parser.add_argument(
-        "merged_db_path",
+        "-o",
+        "--output_merged_db_path",
         type=str,
         default=None,
         help="Path for the created merged .db file.",
     )
     args = parser.parse_args()
 
-    return args.db_folder, args.merged_db_path
+    return args.db_folder, args.output_merged_db_path
 
 
 def main(db_folder: Iterable[Path], merged_db_path: Path | str | None = None) -> None:
