@@ -145,7 +145,8 @@ def main(
                 # Calculate descriptors on sidechain-H
                 rotamer.calc_descriptors()
 
-                # Save in database or print out
+            # Save in database or print out
+            if not rotamer_already_exists:
                 if output_path is None:
                     sys.stdout.write(json.dumps(rotamer.to_dict(), indent=4))
                 elif output_path.suffix == ".db":
