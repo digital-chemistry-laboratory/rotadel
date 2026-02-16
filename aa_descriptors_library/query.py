@@ -13,6 +13,7 @@ from aa_descriptors_library.constants import (
     NDRD_PATH,
     NUMBER_OF_CHI_ANGLES,
     ONE_TO_THREE_AA,
+    PHYSIO_SPECIES,
     SQL_PATH,
     THREE_TO_ONE_AA,
 )
@@ -204,9 +205,19 @@ def query_average(
     if ndrd_path is None:
         ndrd_path = NDRD_PATH
 
-    # Histidine requires charge and tautomer info for averaging atomic descriptors because atom mapping varies
-    if residue == "HIS" and (charge is None or tautomer is None):
-        raise ValueError("For histidine, both charge and tautomer must be specified.")
+    if charge is None:
+        charge = PHYSIO_SPECIES[THREE_TO_ONE_AA[residue]]["charge"]
+    if residue == "HIS":
+        if tautomer is None:
+            tautomer = PHYSIO_SPECIES[THREE_TO_ONE_AA[residue]]["tautomer"]
+        if tautomer is not None and charge != 0:
+            raise ValueError(
+                "Histidine tautomers only available for charge 0, "
+                f"but charge {charge} and tautomer {tautomer} were specified."
+            )
+    else:
+        if tautomer is not None:
+            raise ValueError("Tautomers can only be specified for histidine.")
 
     backbone_probs = parse_ndrd(ndrd_path, residue, left_neighbour, right_neighbour)
 
@@ -221,10 +232,9 @@ def query_average(
     with sqlite3.connect(sql_path) as conn:
         cur = conn.cursor()
         cur.execute(
-            """SELECT prob, phi, psi, descriptors FROM rotamers_data WHERE res = ?
-            AND (? IS NULL OR charge = ?)
-            AND (? IS NULL OR tautomer IS ?)""",
-            (residue, charge, charge, tautomer, tautomer),
+            """SELECT prob, phi, psi, descriptors FROM rotamers_data
+            WHERE res = ? AND charge = ? AND tautomer IS ?""",
+            (residue, charge, tautomer),
         )
 
         avg_descriptors = {}

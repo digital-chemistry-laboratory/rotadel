@@ -146,3 +146,24 @@ SIDECHAIN_SMARTS = {
     "W": {0: "[CH2][c]1[cH][nH][c]2[cH][cH][cH][cH][c]12"},
     "Y": {0: "[CH2][c]1[cH][cH][c]([OH])[cH][cH]1"},
 }
+
+PHYSIO_SPECIES = {
+    "C": {"charge": 0, "tautomer": None},
+    "D": {"charge": -1, "tautomer": None},
+    "E": {"charge": -1, "tautomer": None},
+    "F": {"charge": 0, "tautomer": None},
+    "H": {"charge": 0, "tautomer": "E"},
+    "I": {"charge": 0, "tautomer": None},
+    "K": {"charge": +1, "tautomer": None},
+    "L": {"charge": 0, "tautomer": None},
+    "M": {"charge": 0, "tautomer": None},
+    "N": {"charge": 0, "tautomer": None},
+    "P": {"charge": 0, "tautomer": None},
+    "Q": {"charge": 0, "tautomer": None},
+    "R": {"charge": +1, "tautomer": None},
+    "S": {"charge": 0, "tautomer": None},
+    "T": {"charge": 0, "tautomer": None},
+    "V": {"charge": 0, "tautomer": None},
+    "W": {"charge": 0, "tautomer": None},
+    "Y": {"charge": 0, "tautomer": None},
+}
