@@ -228,6 +228,7 @@ def query_average(
         )
 
         avg_descriptors = {}
+        all_rotamer_probs = []
         for prob_sidechain, phi, psi, desc_str in cur.fetchall():
 
             # Fetch normalised backbone probability for the given phi & psi
@@ -237,8 +238,15 @@ def query_average(
             ].values[0]
 
             prob_rotamer = prob_sidechain * prob_backbone
+            all_rotamer_probs.append(prob_rotamer)
             descriptors = json.loads(desc_str)
             calc_weighted_desc(avg_descriptors, prob_rotamer, descriptors)
+
+        prob_sum = sum(all_rotamer_probs)
+        if not np.isclose(prob_sum, 1.0, atol=1e-6):
+            raise ValueError(
+                f"Sum of all rotamer probabilities is {prob_sum}, expected approximately 1.0"
+            )
 
         return round_dict(avg_descriptors)
 
