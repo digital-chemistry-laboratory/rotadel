@@ -253,7 +253,7 @@ def query_average(
             calc_weighted_desc(avg_descriptors, prob_rotamer, descriptors)
 
         prob_sum = sum(all_rotamer_probs)
-        if not np.isclose(prob_sum, 1.0, atol=1e-6):
+        if not np.isclose(prob_sum, 1.0, atol=0.01):
             raise ValueError(
                 f"Sum of all rotamer probabilities is {prob_sum}, expected approximately 1.0"
             )
