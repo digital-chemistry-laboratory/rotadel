@@ -78,9 +78,7 @@ def dist_atom_ligand_res_pdb(pdb_file, res_num, res_atom_name, lig_atom_name):
 
 
 def get_closest_D127_O(pdb_file):
-    """Return atom index from rotamer descriptor library of the O in D127 closest to the ligand N atom.
-    (6 for OD1, 7 for OD2).
-    """
+    """Return atom name from rotamer descriptor library of the O in D127 closest to N of ligand (either OD1 or OD2)."""
     dist_OD1 = dist_atom_ligand_res_pdb(pdb_file, 127, "OD1", "NAG")
     dist_OD2 = dist_atom_ligand_res_pdb(pdb_file, 127, "OD2", "NAG")
     if dist_OD1 < dist_OD2:
