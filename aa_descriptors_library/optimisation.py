@@ -50,9 +50,11 @@ def gen_dihedral_constraints(
     dihedral_constraints = []
     N = atoms_indices["N"]
     CA = atoms_indices["CA"]
-    CB = idx_atoms_at_position(atoms_indices, "B")[0]
-    G = idx_atoms_at_position(atoms_indices, "G")[0]
-    dihedral_constraints.append(([N, CA, CB, G], dunbrack_data["chi1"]))
+    if letter != "G":
+        CB = idx_atoms_at_position(atoms_indices, "B")[0]
+    if nb_chis >= 1:
+        G = idx_atoms_at_position(atoms_indices, "G")[0]
+        dihedral_constraints.append(([N, CA, CB, G], dunbrack_data["chi1"]))
     if nb_chis >= 2:
         D = idx_atoms_at_position(atoms_indices, "D")[0]
         dihedral_constraints.append(([CA, CB, G, D], dunbrack_data["chi2"]))
@@ -100,7 +102,7 @@ def gen_sidechain_constraints(
     letter = dunbrack_data["letter"]
 
     # Dihedral constraint(s) for the H(s) to optimise
-    if letter in ["C", "S", "T", "V"]:
+    if letter in ["A", "G", "C", "S", "T", "V"]:
         dihedral_constraints = None
     else:
         HCA = atoms_indices["HCA"]
@@ -292,7 +294,9 @@ def start_rotamer_geo(
     letter = dunbrack_data["letter"]
     geo = Geometry.geometry(letter)
     geo.N_CA_C_O_diangle += add_rotation_O
-    if letter == "R":
+    if letter in ["A", "G"]:
+        pass
+    elif letter == "R":
         geo.N_CA_CB_CG_diangle = dunbrack_data["chi1"]
         geo.CA_CB_CG_CD_diangle = dunbrack_data["chi2"]
         geo.CB_CG_CD_NE_diangle = dunbrack_data["chi3"]
@@ -574,11 +578,12 @@ def has_structure_problems(
             sidechainH_smarts = get_smarts_sidechainH(sidechain_smarts, aa_letter)
             possible_smarts = [Chem.MolFromSmarts(sidechainH_smarts)]
         else:
-            backbone_forms = (
-                ["pro_zwitterion", "pro_neutral"]
-                if aa_letter == "P"
-                else ["zwitterion", "neutral"]
-            )
+            if aa_letter == "P":
+                backbone_forms = ["pro_zwitterion", "pro_neutral"]
+            elif aa_letter == "G":
+                backbone_forms = ["gly_zwitterion", "gly_neutral"]
+            else:
+                backbone_forms = ["zwitterion", "neutral"]
             for form in backbone_forms:
                 whole_smarts = BACKBONE_SMARTS[form].format(R=sidechain_smarts)
                 possible_smarts.append(Chem.MolFromSmarts(whole_smarts))
@@ -602,6 +607,10 @@ def get_smarts_sidechainH(sidechain_smarts: str, aa_letter: str) -> str:
         )[::-1]
     elif aa_letter in ["I", "T", "V"]:
         smarts = sidechain_smarts.replace("[CH]", "[CH2]", 1)
+    elif aa_letter == "A":
+        smarts = sidechain_smarts.replace("[CH3]", "[CH4]", 1)
+    elif aa_letter == "G":
+        smarts = sidechain_smarts.replace("[H]", "[H][H]", 1)
     else:
         smarts = sidechain_smarts.replace("[CH2]", "[CH3]", 1)
     return smarts

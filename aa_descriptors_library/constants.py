@@ -4,7 +4,11 @@ NDRD_PATH = (
     "/cluster/project/jorner/lajacot/projects/aa-descriptors-library/data/ndrd.csv"
 )
 
+ANGLES_JSON_PATH = "/cluster/project/jorner/lajacot/projects/aa-descriptors-library/data/angles_combined.json"
+
 NUMBER_OF_CHI_ANGLES = {
+    "A": 0,
+    "G": 0,
     "C": 1,
     "S": 1,
     "T": 1,
@@ -51,6 +55,7 @@ ONE_TO_THREE_AA = {
 THREE_TO_ONE_AA = {v: k for k, v in ONE_TO_THREE_AA.items()}
 
 NON_PERMUTABLE_INDICES_SIDECHAIN = {
+    "A": ["CB"],
     "C": ["CB", "SG", "HG"],
     "D": ["CB", "CG", "OD1", "OD2", "HD2"],
     "E": ["CB", "CG", "CD", "OE1", "OE2", "HE2"],
@@ -68,6 +73,7 @@ NON_PERMUTABLE_INDICES_SIDECHAIN = {
         "CZ",
         "HZ",
     ],
+    "G": [],
     "H": ["CB", "CG", "ND1", "HD1", "CD2", "HD2", "CE1", "HE1", "NE2", "HE2"],
     "I": ["CB", "HB", "CG1", "CG2", "CD1"],
     "K": ["CB", "CG", "CD", "CE", "NZ"],
@@ -120,13 +126,17 @@ BACKBONE_SMARTS = {
     "neutral": "[NH2][CH]({R})[C](=[O])[OH]",
     "pro_zwitterion": "[NH2+]1{R}[CH]1[C](=[O])[O-]",
     "pro_neutral": "[NH]1{R}[CH]1[C](=[O])[OH]",
+    "gly_zwitterion": "[NH3+][CH2][C](=[O])[O-]",
+    "gly_neutral": "[NH2][CH2][C](=[O])[OH]",
 }
 
 SIDECHAIN_SMARTS = {
+    "A": {0: "[CH3]"},
     "C": {0: "[CH2][SH]", -1: "[CH2][S-]"},
     "D": {0: "[CH2][C](=[O])[OH]", -1: "[CH2][C](=[O])[O-]"},
     "E": {0: "[CH2][CH2][C](=[O])[OH]", -1: "[CH2][CH2][C](=[O])[O-]"},
     "F": {0: "[CH2][c]1[cH][cH][cH][cH][cH]1"},
+    "G": {0: "[H]"},
     "H": {
         0: {"D": "[CH2][c]1[nH][cH][n][cH]1", "E": "[CH2][c]1[n][cH][nH][cH]1"},
         -1: "[CH2][c]1[n][cH][n][cH]1",
@@ -148,10 +158,12 @@ SIDECHAIN_SMARTS = {
 }
 
 PHYSIO_SPECIES = {
+    "A": {"charge": 0, "tautomer": None},
     "C": {"charge": 0, "tautomer": None},
     "D": {"charge": -1, "tautomer": None},
     "E": {"charge": -1, "tautomer": None},
     "F": {"charge": 0, "tautomer": None},
+    "G": {"charge": 0, "tautomer": None},
     "H": {"charge": 0, "tautomer": "E"},
     "I": {"charge": 0, "tautomer": None},
     "K": {"charge": +1, "tautomer": None},

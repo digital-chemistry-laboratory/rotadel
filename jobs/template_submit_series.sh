@@ -15,7 +15,7 @@ export PYTHONPATH=/cluster/project/jorner/lajacot/miniforge3/envs/aa/lib/python3
 export PYTHONPATH=/cluster/project/jorner/lajacot/projects/aa-descriptors-library:$PYTHONPATH
 
 # Files paths
-angles_json="../data/angles_Dunbrack.json"
+angles_json="../data/angles_combined.json"
 input_file="${BATCH_FILE}"
 batch_number=$(basename "${input_file}" | sed 's/\.[^.]*$//' | awk -F'_' '{print $NF}')
 output_path="../data/batches_sql_output/rotamers_sql_${batch_number}.db"
@@ -23,7 +23,7 @@ output_path="../data/batches_sql_output/rotamers_sql_${batch_number}.db"
 # Run
 echo "--- Run for ${input_file} ---"
 while IFS= read -r line || [ -n "$line" ]; do
-    python -m aa_descriptors_library.main_one_rotamer $line ${angles_json} -o ${output_path} --rerun_failed
+    python -m aa_descriptors_library.main_one_rotamer $line -a ${angles_json} -o ${output_path} --rerun_failed
 done < ${input_file}
 
 # Calculate total run time

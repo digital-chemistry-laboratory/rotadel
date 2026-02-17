@@ -8,6 +8,7 @@ import traceback
 import json
 import sqlite3
 
+from aa_descriptors_library.constants import ANGLES_JSON_PATH
 from aa_descriptors_library.io import lock
 from aa_descriptors_library.rotamer import Rotamer
 from aa_descriptors_library.sql import init_sql_db
@@ -24,9 +25,11 @@ def parse_args():
         help="ID of the rotamer with species information",
     )
     parser.add_argument(
-        "angles_json",
+        "-a",
+        "--angles_json",
         type=Path,
         help="json file with the angles extracted from the Dunbrack library",
+        default=ANGLES_JSON_PATH,
     )
     parser.add_argument(
         "-o",
@@ -56,7 +59,7 @@ def parse_args():
 
 def main(
     rotamer_id: str,
-    angles_json: PathLike | str,
+    angles_json: PathLike | str | None = ANGLES_JSON_PATH,
     run_path: PathLike | str | None = None,
     output_path: PathLike | str | None = None,
     rerun_failed: bool = False,

@@ -260,7 +260,7 @@ def _replace_backbone_pdb(
         lines = file.readlines()
     atom_rows = [line.split() for line in lines if line.startswith("ATOM")]
 
-    atoms_to_delete = {"N", "H", "H1", "H2", "H3", "HA", "C", "O", "OXT", "HXT"}
+    atoms_to_delete = {"N", "H", "H1", "H2", "H3", "HA", "HA3", "C", "O", "OXT", "HXT"}
     atoms_to_replace_by_H = {"CA"}
     if is_pro:
         atoms_to_delete.remove("N")
