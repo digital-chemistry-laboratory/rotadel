@@ -43,6 +43,27 @@ def query_closest(
     traj = md.load(pdb_file)
     target_name = traj.topology.residue(target_res_nb - 1).name
 
+    # Only one possibility for Ala and Gly as they do not have chi angles
+    if target_name in ["ALA", "GLY"]:
+        if target_name == "ALA":
+            rotamer_id = "Aa0a0r0000c0"
+        else:
+            rotamer_id = "Ga0a0r0000c0"
+
+        with sqlite3.connect(sql_path) as conn:
+            cur = conn.cursor()
+        cur.execute(
+            "SELECT descriptors FROM rotamers_data WHERE rotamer_id = ?;", (rotamer_id,)
+        )
+        descriptors = cur.fetchone()[0]
+        only_rot = {
+            "rotamer_id": rotamer_id,
+            "chis_distance": 0.0,
+            "chis": {"chi1": None, "chi2": None, "chi3": None, "chi4": None},
+            "descriptors": json.loads(descriptors),
+        }
+        return only_rot
+
     def compute_chi_from_res(traj, res_nb, which_chi):
         # MDTraj functions compute all chi_i present in the pdb
         compute_chi_fct = {
@@ -242,10 +263,13 @@ def query_average(
         for prob_sidechain, phi, psi, desc_str in cur.fetchall():
 
             # Fetch normalised backbone probability for the given phi & psi
-            prob_backbone = backbone_probs.loc[
-                (backbone_probs["phi"] == phi) & (backbone_probs["psi"] == psi),
-                "norm_prob",
-            ].values[0]
+            if residue in ["ALA", "GLY"]:
+                prob_backbone = 1.0
+            else:
+                prob_backbone = backbone_probs.loc[
+                    (backbone_probs["phi"] == phi) & (backbone_probs["psi"] == psi),
+                    "norm_prob",
+                ].values[0]
 
             prob_rotamer = prob_sidechain * prob_backbone
             all_rotamer_probs.append(prob_rotamer)
