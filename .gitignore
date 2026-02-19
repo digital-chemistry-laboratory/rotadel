@@ -15,7 +15,6 @@ submit*
 slurm*
 node_list*
 *.log
-gfnff_*
 *.out
 *.error
 HT*
