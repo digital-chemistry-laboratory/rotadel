@@ -1,6 +1,7 @@
 from pathlib import Path
 import sqlite3
 import json
+from functools import lru_cache
 from spyrmsd.rmsd import rmsd
 import mdtraj as md
 import numpy as np
@@ -17,6 +18,12 @@ from aa_descriptors_library.constants import (
     SQL_PATH,
     THREE_TO_ONE_AA,
 )
+
+
+@lru_cache()
+def _read_ndrd(ndrd_csv: Path | str) -> pd.DataFrame:
+    """Load and cache the data from NDRD csv file."""
+    return pd.read_csv(ndrd_csv)
 
 
 def query_closest(
@@ -293,7 +300,7 @@ def parse_ndrd(
 ) -> pd.DataFrame:
     """Parse the NDRD csv file to get the backbone probabilities for a given residue with or without neighbours.
     Args:
-        ndrd_csv: path to the csv file with NDRD data
+        ndrd_csv: path to the csv file with NDRD data (with phi/psi incremented by 10°)
         residue: three letter code of the amino acid type
         left_neighbour: three letter code of the amino acid left from `residue`
         right_neighbour: three letter code of the amino acid right from `residue`
@@ -303,10 +310,7 @@ def parse_ndrd(
             - probability either independent of neighbours or given one or both neighbours
             - treat trans and cis prolines together
     """
-    ndrd = pd.read_csv(ndrd_csv)
-
-    # Keep only the phi,psi incremented by 10° (increment of 10° in rotamer library while 5° in NDRD)
-    ndrd_step_10 = ndrd.loc[(ndrd["phi"] % 10 == 0) & (ndrd["psi"] % 10 == 0)].copy()
+    ndrd_step_10 = _read_ndrd(ndrd_csv)
 
     # Treat trans (PRO) and cis (CPR) prolines together
     residue = residue.upper()
