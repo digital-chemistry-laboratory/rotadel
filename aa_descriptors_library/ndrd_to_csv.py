@@ -4,8 +4,9 @@ Save the probability data from NDRD library into a CSV file.
 
 import pandas as pd
 
+from aa_descriptors_library.constants import NDRD_PATH
+
 lib_file = "/cluster/project/jorner/lajacot/projects/aa-descriptors-library/Dunbrack_library/ndrd/NDRD_TCBIG.txt"
-csv_output = "/cluster/project/jorner/lajacot/projects/aa-descriptors-library/gen_lib/data/ndrd.csv"
 
 column_names = [
     "res",
@@ -25,4 +26,10 @@ lib_df = pd.read_csv(
     low_memory=False,
 )
 lib_df.drop(["cum_sum"], axis="columns", inplace=True)
-lib_df.to_csv(csv_output, index=False)
+
+# Keep only the phi/psi incremented by 10° (increment of 10° in rotamer library while 5° in NDRD)
+lib_df_step_10 = lib_df.loc[
+    (lib_df["phi"] % 10 == 0) & (lib_df["psi"] % 10 == 0)
+].copy()
+
+lib_df_step_10.to_csv(NDRD_PATH, index=False)
