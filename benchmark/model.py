@@ -33,14 +33,17 @@ def get_filtered_descriptor_names() -> tuple[str, ...]:
     return tuple(filtered)
 
 
-def configure_tensorflow_runtime() -> None:
+def configure_tensorflow_runtime(require_gpu: bool = True) -> None:
     gpus = tf.config.list_physical_devices("GPU")
     if gpus:
         for gpu in gpus:
             tf.config.experimental.set_memory_growth(gpu, True)
         print(f"Using {len(gpus)} GPU(s): {[gpu.name for gpu in gpus]}")
     else:
-        print("No GPU detected. Falling back to CPU.")
+        message = "No GPU detected."
+        if require_gpu:
+            raise RuntimeError(f"{message} Exiting because GPU is required.")
+        print(f"{message} Falling back to CPU.")
 
 
 class ModelRunner:
@@ -231,12 +234,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--n-combinations", type=int, default=None)
     parser.add_argument("--start-combination-idx", type=int, default=0)
     parser.add_argument("--results-dir", default="results")
+    parser.add_argument("--allow-cpu", action="store_true")
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
-    configure_tensorflow_runtime()
+    configure_tensorflow_runtime(require_gpu=not args.allow_cpu)
     model = ModelRunner(
         model_name=args.model,
         dataset_name=args.dataset,
