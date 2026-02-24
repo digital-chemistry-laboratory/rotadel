@@ -43,3 +43,12 @@ def rmsd_symmetric(
         rmsd_value = rmsd.rmsd(coords1, coords2, el1, el2, center=True, minimize=True)
 
     return rmsd_value
+
+
+def format_duration(seconds: float) -> str:
+    """Format a duration time from seconds to h:m:s string."""
+    seconds_int = int(round(seconds))
+    hours = seconds_int // 3600
+    minutes = (seconds_int % 3600) // 60
+    secs = seconds_int % 60
+    return f"{hours}h {minutes}m {secs}s"
