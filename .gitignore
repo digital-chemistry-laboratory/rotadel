@@ -24,7 +24,6 @@ logs
 # Data
 Dunbrack_library
 data*/
-peptidy_zenodo
 # All test folders and files
 test*
 # Analysis folder
