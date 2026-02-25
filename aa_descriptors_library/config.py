@@ -1,3 +1,10 @@
+from pathlib import Path
+
+ROOT_DIR = Path(__file__).resolve().parent.parent
+SQL_PATH = ROOT_DIR / "data" / "merged_whole_filtered_library_sql.db"
+NDRD_PATH = ROOT_DIR / "data" / "ndrd_step10.csv"
+ANGLES_JSON_PATH = ROOT_DIR / "data" / "angles_combined.json"
+
 # Config for xtb parallelisation
 OMP_NUM_THREADS: int = 1
 OMP_STACKSIZE: str = "1G"

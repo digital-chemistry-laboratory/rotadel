@@ -10,12 +10,11 @@ from typing_extensions import deprecated
 
 from aa_descriptors_library.io_atoms import read_geo
 from aa_descriptors_library.sql import get_xyz_from_sql
+from aa_descriptors_library.config import NDRD_PATH, SQL_PATH
 from aa_descriptors_library.constants import (
-    NDRD_PATH,
     NUMBER_OF_CHI_ANGLES,
     ONE_TO_THREE_AA,
     PHYSIO_SPECIES,
-    SQL_PATH,
     THREE_TO_ONE_AA,
 )
 

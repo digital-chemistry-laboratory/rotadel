@@ -1,9 +1,3 @@
-SQL_PATH = "/cluster/project/jorner/lajacot/projects/aa-descriptors-library/data/merged_whole_filtered_library_sql.db"
-
-NDRD_PATH = "/cluster/project/jorner/lajacot/projects/aa-descriptors-library/data/ndrd_step10.csv"
-
-ANGLES_JSON_PATH = "/cluster/project/jorner/lajacot/projects/aa-descriptors-library/data/angles_combined.json"
-
 NUMBER_OF_CHI_ANGLES = {
     "A": 0,
     "G": 0,

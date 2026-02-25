@@ -4,7 +4,7 @@ Save the probability data from NDRD library into a CSV file.
 
 import pandas as pd
 
-from aa_descriptors_library.constants import NDRD_PATH
+from aa_descriptors_library.config import NDRD_PATH
 
 lib_file = "/cluster/project/jorner/lajacot/projects/aa-descriptors-library/Dunbrack_library/ndrd/NDRD_TCBIG.txt"
 

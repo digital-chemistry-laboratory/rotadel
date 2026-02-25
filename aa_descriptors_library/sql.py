@@ -4,7 +4,7 @@ import json
 import numpy as np
 import pandas as pd
 
-from aa_descriptors_library.constants import SQL_PATH
+from aa_descriptors_library.config import SQL_PATH
 
 
 def init_sql_db(db_path: str | Path) -> None:
@@ -150,10 +150,10 @@ def get_descriptors(
             AND (? IS NULL OR charge = ?)
             AND (? IS NULL OR tautomer IS ?)"""
     params = (res, res, charge, charge, tautomer, tautomer)
-    with sqlite3.connect(str(sql_path)) as con:
-        con.execute("PRAGMA journal_mode=WAL")
-        con.execute("PRAGMA synchronous=NORMAL")
-        base = pd.read_sql_query(query, con, params=params)
+    with sqlite3.connect(sql_path) as conn:
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+        base = pd.read_sql_query(query, conn, params=params)
 
     descriptors = [
         json.loads(d) if isinstance(d, (str, bytes)) and d else {}

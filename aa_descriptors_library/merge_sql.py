@@ -5,7 +5,7 @@ import sqlite3
 import time
 from typing import Iterable
 
-from aa_descriptors_library.constants import SQL_PATH
+from aa_descriptors_library.config import SQL_PATH
 from aa_descriptors_library.sql import count_rotamers_in_sql
 
 
