@@ -5,6 +5,8 @@ import re
 import sys
 import traceback
 
+from aa_descriptors_library.io import merge_json_files
+
 
 def parse_args():
     """Parse command line arguments"""
@@ -31,31 +33,6 @@ def parse_args():
     args = parser.parse_args()
 
     return args.json_folder, args.task, args.merged_output
-
-
-def merge_json_files(json_files: list[Path | str], merged_output: Path | str):
-    """Merge given JSON files into a single JSON file."""
-
-    merged_output = Path(merged_output)
-    with open(merged_output, "w") as merged_f:
-        merged_f.write("{\n")
-        first = True
-        for file in json_files:
-            try:
-                with open(file, "r") as batch_f:
-                    data = json.load(batch_f)
-            except json.JSONDecodeError:
-                fix_json_file(file)
-                with open(file, "r") as f_fixed:
-                    data = json.load(f_fixed)
-            for key, value in data.items():
-                if not first:
-                    merged_f.write(",\n")
-                json.dump(key, merged_f, indent=4)
-                merged_f.write(": ")
-                json.dump(value, merged_f, indent=4)
-                first = False
-        merged_f.write("\n}\n")
 
 
 def fix_json_file(json_file: Path | str) -> None:
@@ -125,11 +102,12 @@ def main(json_folder: Path | str, task: str, merged_output: Path | str | None = 
     json_folder = Path(json_folder)
     json_files = list(json_folder.glob("*.json"))
 
-    if task == "fix":
+    for json_file in json_files:
+        fix_json_file(json_file)
+
+    if task == "merge":
         for json_file in json_files:
             fix_json_file(json_file)
-
-    elif task == "merge":
         if merged_output is None:
             merged_output = json_folder / "merged_rotamer_descriptors.json"
         merge_json_files(json_files, merged_output)

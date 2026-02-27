@@ -1,5 +1,6 @@
 import contextlib
 import fcntl
+import json
 from os import PathLike
 from pathlib import Path
 import shutil
@@ -25,6 +26,26 @@ def lock(file: str | PathLike):
         # Unlock file
         fcntl.lockf(lock_file, fcntl.LOCK_UN)
         lock_file.close()
+
+
+def merge_json_files(json_files: list[Path | str], merged_output: Path | str):
+    """Merge given JSON files into a single JSON file."""
+
+    merged_output = Path(merged_output)
+    with open(merged_output, "w") as merged_f:
+        merged_f.write("{\n")
+        first = True
+        for file in json_files:
+            with open(file, "r") as batch_f:
+                data = json.load(batch_f)
+            for key, value in data.items():
+                if not first:
+                    merged_f.write(",\n")
+                json.dump(key, merged_f, indent=4)
+                merged_f.write(": ")
+                json.dump(value, merged_f, indent=4)
+                first = False
+        merged_f.write("\n}\n")
 
 
 def extract_file_from_zip(
