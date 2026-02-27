@@ -1,9 +1,11 @@
 import contextlib
 import fcntl
 import json
+import os
 from os import PathLike
 from pathlib import Path
 import shutil
+import tempfile
 import zipfile
 
 import numpy as np
@@ -46,6 +48,27 @@ def merge_json_files(json_files: list[Path | str], merged_output: Path | str):
                 json.dump(value, merged_f, indent=4)
                 first = False
         merged_f.write("\n}\n")
+
+
+def write_json_atomic(path: Path | str, dict_to_write: dict) -> None:
+    """Atomically write json to avoid truncated files on interruptions."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_path = tempfile.mkstemp(
+        dir=str(path.parent),
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+        text=True,
+    )
+    try:
+        with os.fdopen(fd, "w") as tmp_file:
+            json.dump(dict_to_write, tmp_file, indent=4)
+            tmp_file.flush()
+            os.fsync(tmp_file.fileno())
+        os.replace(tmp_path, path)
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
 
 
 def extract_file_from_zip(
