@@ -197,6 +197,70 @@ def query_closest_batch(
         return list(pool.starmap(query_closest, args_list))
 
 
+def results_closest_into_dataframes(
+    queries_output: list[dict[str, float | str | dict | None]],
+    pdb_ids: list[int | str],
+    res_indices: list[int | str],
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Convert query_closest_batch outputs into two DataFrames.
+
+    Args:
+        queries_output: flat list of query_closest results, ordered as
+            [row0_res0, row0_res1, ..., row1_res0, row1_res1, ...]
+            i.e. the direct output of query_closest_batch when queries are built
+            by iterating rows then residues.
+        pdb_ids: one ID per row (e.g. PDB IDs), length n_rows
+        res_indices: one index per residue position, length n_res
+    Returns:
+        rotamers_df: indexed by pdb_ids, columns res{label}_rotamer,
+            res{label}_chis_dist, res{label}_chi1..chi4 for each residue
+        descriptors_df: indexed by pdb_ids, columns res{label}_{desc} for molecular
+            descriptors and res{label}_{desc}_{atom} for atomic (nested) descriptors.
+            If residues are not the same accross PDBs, the union of atomic descriptors
+            will be saved with NaN for atoms missing in some PDBs.
+    """
+    n_res = len(res_indices)
+    rotamer_rows = []
+    descriptors_rows = []
+
+    for pdb_id in range(len(pdb_ids)):
+        rotamer_row: dict = {}
+        descriptor_row: dict = {}
+        for i, res_idx in enumerate(res_indices):
+            result = queries_output[pdb_id * n_res + i]
+            prefix = f"res{res_idx}"
+
+            rotamer_row[f"{prefix}_rotamer"] = result["rotamer_id"]
+            rotamer_row[f"{prefix}_chis_dist"] = result["chis_distance"]
+            for chi_name, chi_val in result["chis"].items():
+                rotamer_row[f"{prefix}_{chi_name}"] = chi_val
+
+            for desc_key, desc_val in result["descriptors"].items():
+                if isinstance(desc_val, dict):
+                    # Atomic descriptor: flatten one column per atom
+                    for atom, atom_val in desc_val.items():
+                        descriptor_row[f"{prefix}_{desc_key}_{atom}"] = atom_val
+                else:
+                    descriptor_row[f"{prefix}_{desc_key}"] = desc_val
+
+        rotamer_rows.append(rotamer_row)
+        descriptors_rows.append(descriptor_row)
+
+    rotamers_df = pd.DataFrame(rotamer_rows, index=pdb_ids)
+    descriptors_df = pd.DataFrame(descriptors_rows, index=pdb_ids)
+    rotamers_df.index.name = "variant_id"
+    descriptors_df.index.name = "variant_id"
+
+    # Sort columns by residue index so that descriptors are grouped by residue
+    def _col_sort_key(col: str) -> tuple:
+        res_part, rest = col.split("_", 1)
+        return (int(res_part[3:]), rest)
+
+    descriptors_df = descriptors_df[sorted(descriptors_df.columns, key=_col_sort_key)]
+
+    return rotamers_df, descriptors_df
+
+
 def distance_angles(angles1: list[float], angles2: list[float]) -> float:
     """Calculate the distance between two sets of angles.
     Args:
