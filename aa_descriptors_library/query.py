@@ -1,12 +1,14 @@
+from multiprocessing import Pool
+from functools import lru_cache
+import json
 from pathlib import Path
 import sqlite3
-import json
-from functools import lru_cache
-from spyrmsd.rmsd import rmsd
+from typing_extensions import deprecated
+
 import mdtraj as md
 import numpy as np
 import pandas as pd
-from typing_extensions import deprecated
+from spyrmsd.rmsd import rmsd
 
 from aa_descriptors_library.io_atoms import read_geo
 from aa_descriptors_library.sql import get_xyz_from_sql
@@ -23,6 +25,72 @@ from aa_descriptors_library.constants import (
 def _read_ndrd(ndrd_csv: Path | str) -> pd.DataFrame:
     """Load and cache the data from NDRD csv file."""
     return pd.read_csv(ndrd_csv)
+
+
+@lru_cache(maxsize=64)
+def _get_rotamers_cached(
+    sql_path: str, res: str, charge: int, tautomer: str | None
+) -> tuple:
+    """Fetch and cache rotamers for a given residue/charge/tautomer."""
+    with sqlite3.connect(sql_path) as conn:
+        cur = conn.cursor()
+        cur.execute(
+            """SELECT rotamer_id, chi1, chi2, chi3, chi4, descriptors
+            FROM rotamers_data WHERE res = ? AND charge = ? AND tautomer IS ?""",
+            (res, charge, tautomer),
+        )
+        rows = cur.fetchall()
+
+    if not rows:
+        return (), np.empty((0, 4)), ()
+
+    rotamer_ids, chis_list, descriptors_list = [], [], []
+    seen: set[tuple] = set()
+    for rotamer_id, chi1, chi2, chi3, chi4, desc in rows:
+        # Ignore chi3 from Dunbrack library for proline as normally defined with 2 chis
+        if res == "PRO":
+            chi3 = None
+        key = (chi1, chi2, chi3, chi4)
+        if key in seen:
+            continue
+        seen.add(key)
+        rotamer_ids.append(rotamer_id)
+        chis_list.append(
+            [
+                chi1 if chi1 is not None else float("nan"),
+                chi2 if chi2 is not None else float("nan"),
+                chi3 if chi3 is not None else float("nan"),
+                chi4 if chi4 is not None else float("nan"),
+            ]
+        )
+        descriptors_list.append(desc)
+
+    return tuple(rotamer_ids), np.array(chis_list, dtype=float), tuple(descriptors_list)
+
+
+def _compute_chis(
+    traj: "md.Trajectory", res_nb: int, nb_chis: int
+) -> list[float | None]:
+    """Compute the chi angles for a residue in a trajectory."""
+
+    # MDTraj functions compute all chi_i present in the pdb
+    fcts = [md.compute_chi1, md.compute_chi2, md.compute_chi3, md.compute_chi4]
+    chis: list[float | None] = []
+    for i in range(nb_chis):
+        all_atom_idxs, all_angles_rad = fcts[i](traj)
+        # Get the indices of all residues containing chi_i
+        res_indices = np.array(
+            [traj.topology.atom(a[1]).residue.index for a in all_atom_idxs]
+        )
+        # Find which computed angle corresponds to the target residue number
+        match = np.where(res_indices == res_nb - 1)[0]
+        if match.size == 0:
+            raise ValueError(
+                f"Residue number {res_nb} (1-based) does not have a chi{i + 1} angle."
+            )
+        chis.append(float(np.degrees(all_angles_rad[0, match[0]])))
+
+    return chis + [None] * (4 - nb_chis)
 
 
 def query_closest(
@@ -51,111 +119,82 @@ def query_closest(
 
     # Only one possibility for Ala and Gly as they do not have chi angles
     if target_name in ["ALA", "GLY"]:
-        if target_name == "ALA":
-            rotamer_id = "Aa0a0r0000c0"
-        else:
-            rotamer_id = "Ga0a0r0000c0"
-
+        rotamer_id = "Aa0a0r0000c0" if target_name == "ALA" else "Ga0a0r0000c0"
         with sqlite3.connect(sql_path) as conn:
             cur = conn.cursor()
-        cur.execute(
-            "SELECT descriptors FROM rotamers_data WHERE rotamer_id = ?;", (rotamer_id,)
-        )
-        descriptors = cur.fetchone()[0]
-        only_rot = {
+            cur.execute(
+                "SELECT descriptors FROM rotamers_data WHERE rotamer_id = ?;",
+                (rotamer_id,),
+            )
+            descriptors = cur.fetchone()[0]
+        return {
             "rotamer_id": rotamer_id,
             "chis_distance": 0.0,
             "chis": {"chi1": None, "chi2": None, "chi3": None, "chi4": None},
             "descriptors": json.loads(descriptors),
         }
-        return only_rot
-
-    def compute_chi_from_res(traj, res_nb, which_chi):
-        # MDTraj functions compute all chi_i present in the pdb
-        compute_chi_fct = {
-            "1": md.compute_chi1,
-            "2": md.compute_chi2,
-            "3": md.compute_chi3,
-            "4": md.compute_chi4,
-        }
-        all_atom_idxs, all_angles_rad = compute_chi_fct[str(which_chi)](traj)
-        # Get the indices of all residues containing chi_i
-        res_in_computed_chis = np.array(
-            [
-                traj.topology.atom(atom_idxs[1]).residue.index
-                for atom_idxs in all_atom_idxs
-            ]
-        )
-        # Find which computed angle corresponds to the target residue number
-        try:
-            corresponding_idx = np.where(res_in_computed_chis == res_nb - 1)[0][0]
-        except IndexError:
-            raise ValueError(
-                f"Residue number {res_nb} (1-based) does not have a chi{which_chi} angle."
-            )
-        chi = np.degrees(all_angles_rad[0, corresponding_idx])
-        return chi
 
     nb_chis = NUMBER_OF_CHI_ANGLES[THREE_TO_ONE_AA[target_name]]
-    target_chi1 = compute_chi_from_res(traj, target_res_nb, "1")
-    target_chi2 = (
-        compute_chi_from_res(traj, target_res_nb, "2") if nb_chis >= 2 else None
-    )
-    target_chi3 = (
-        compute_chi_from_res(traj, target_res_nb, "3") if nb_chis >= 3 else None
-    )
-    target_chi4 = (
-        compute_chi_from_res(traj, target_res_nb, "4") if nb_chis >= 4 else None
-    )
+    target_chis = _compute_chis(traj, target_res_nb, nb_chis)
 
-    closest_rot = {
-        "rotamer_id": None,
-        "chis_distance": float("inf"),
-        "chis": {"chi1": None, "chi2": None, "chi3": None, "chi4": None},
-        "descriptors": None,
-    }
-    already_calculated = set()
-
-    with sqlite3.connect(sql_path) as conn:
-        cur = conn.cursor()
-        cur.execute(
-            """
-            SELECT rotamer_id, chi1, chi2, chi3, chi4, descriptors
-            FROM rotamers_data where res = ? AND charge = ? AND tautomer IS ?
-            """,
-            (target_name, charge, tautomer),
+    rotamer_ids, chi_array, descriptors_list = _get_rotamers_cached(
+        str(sql_path), target_name, charge, tautomer
+    )
+    if not rotamer_ids:
+        raise ValueError(
+            "No matching rotamer found. Check the specified residue number, charge, and tautomer."
         )
-        for rotamer_id, chi1, chi2, chi3, chi4, descriptors in cur.fetchall():
-            if (chi1, chi2, chi3, chi4) in already_calculated:
-                continue
-            already_calculated.add((chi1, chi2, chi3, chi4))
-            # Ignore chi3 from Dunbrack library for proline as normally defined with 2 chis
-            if target_name == "PRO":
-                chi3 = None
-            chis_dist = distance_angles(
-                [target_chi1, target_chi2, target_chi3, target_chi4],
-                [chi1, chi2, chi3, chi4],
-            )
-            if chis_dist < closest_rot["chis_distance"]:
-                closest_rot = {
-                    "rotamer_id": rotamer_id,
-                    "chis_distance": chis_dist,
-                    "chis": {
-                        "chi1": chi1,
-                        "chi2": chi2,
-                        "chi3": chi3,
-                        "chi4": chi4,
-                    },
-                    "descriptors": json.loads(descriptors),
-                }
 
-        if closest_rot["rotamer_id"] is None:
-            raise ValueError(
-                "No matching rotamer found. Check the specified residue number, charge, and tautomer."
-            )
-        closest_rot["descriptors"] = round_dict(closest_rot["descriptors"])
+    # Vectorized angular distance over all rotamers at once (NaN positions = absent chi, contributes 0)
+    target_arr = np.array(
+        [t if t is not None else float("nan") for t in target_chis], dtype=float
+    )
+    diff = np.abs(((chi_array - target_arr + 180.0) % 360.0) - 180.0)
+    dists = np.sqrt(np.nansum(diff**2, axis=1))
 
-    return closest_rot
+    best_idx = int(np.argmin(dists))
+    best_chis = chi_array[best_idx]
+
+    return {
+        "rotamer_id": rotamer_ids[best_idx],
+        "chis_distance": float(dists[best_idx]),
+        "chis": {
+            "chi1": None if np.isnan(best_chis[0]) else float(best_chis[0]),
+            "chi2": None if np.isnan(best_chis[1]) else float(best_chis[1]),
+            "chi3": None if np.isnan(best_chis[2]) else float(best_chis[2]),
+            "chi4": None if np.isnan(best_chis[3]) else float(best_chis[3]),
+        },
+        "descriptors": round_dict(json.loads(descriptors_list[best_idx])),
+    }
+
+
+def query_closest_batch(
+    queries: list[tuple[str | Path, int, int, str | None]],
+    sql_path: str | Path | None = None,
+    num_workers: int = 1,
+) -> list[dict[str, float | str | dict | None]]:
+    """Run query_closest for a list of PDB files, optionally in parallel.
+    Args:
+        queries: list of (pdb_file, target_res_nb, charge, tautomer) tuples
+        sql_path: path to the SQL database file
+        num_workers: number of parallel worker processes
+    Returns:
+        List of query results in the same order as the given queries
+    """
+    if sql_path is None:
+        sql_path = SQL_PATH
+    sql_path_str = str(sql_path)
+
+    args_list = [
+        (str(pdb_file), res_nb, charge, tautomer, sql_path_str)
+        for pdb_file, res_nb, charge, tautomer in queries
+    ]
+
+    if num_workers == 1:
+        return [query_closest(*args) for args in args_list]
+
+    with Pool(processes=num_workers) as pool:
+        return list(pool.starmap(query_closest, args_list))
 
 
 def distance_angles(angles1: list[float], angles2: list[float]) -> float:
