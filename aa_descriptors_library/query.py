@@ -251,12 +251,17 @@ def results_closest_into_dataframes(
     rotamers_df.index.name = "variant_id"
     descriptors_df.index.name = "variant_id"
 
-    # Sort columns by residue index so that descriptors are grouped by residue
-    def _col_sort_key(col: str) -> tuple:
-        res_part, rest = col.split("_", 1)
-        return (int(res_part[3:]), rest)
-
-    descriptors_df = descriptors_df[sorted(descriptors_df.columns, key=_col_sort_key)]
+    # Group columns by residue without changing within-residue order
+    res_cols: dict[int, list[str]] = {}
+    seen: set[str] = set()
+    for row in descriptors_rows:
+        for col in row:
+            if col not in seen:
+                seen.add(col)
+                res_idx = int(col.split("_", 1)[0][3:])
+                res_cols.setdefault(res_idx, []).append(col)
+    ordered_cols = [col for res_idx in sorted(res_cols) for col in res_cols[res_idx]]
+    descriptors_df = descriptors_df[ordered_cols]
 
     return rotamers_df, descriptors_df
 
