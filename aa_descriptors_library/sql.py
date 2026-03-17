@@ -168,8 +168,16 @@ def get_descriptors(
     return df
 
 
-def get_descriptors_names(sql_path: str | Path | None = None) -> list[str]:
-    """Get the names of all descriptors available in the SQL database."""
+def get_descriptors_names(
+    sql_path: str | Path | None = None, only_mol: bool = False
+) -> list[str]:
+    """Get the names of descriptors available in the SQL database.
+    Args:
+        sql_path: path to the SQL database file
+        only_mol: if True, return only the names of molecular descriptors
+    Returns:
+        Names of all the descriptors or only the molecular ones
+    """
     if sql_path is None:
         sql_path = SQL_PATH
 
@@ -178,6 +186,16 @@ def get_descriptors_names(sql_path: str | Path | None = None) -> list[str]:
         cur.execute("SELECT descriptors FROM rotamers_data LIMIT 1")
         row = cur.fetchone()
         descriptors_names = list(json.loads(row[0]).keys())
+
+    if only_mol:
+        descriptors_names = [
+            descriptor
+            for descriptor in descriptors_names
+            if not any(
+                substring in descriptor
+                for substring in ("local", "fukui", "partial", "bond")
+            )
+        ]
 
     return descriptors_names
 
