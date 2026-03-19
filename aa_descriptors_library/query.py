@@ -69,24 +69,24 @@ def _get_rotamers_cached(
 
 
 def _compute_chis(
-    traj: "md.Trajectory", res_nb: int, nb_chis: int
+    traj: "md.Trajectory", pdb_res_num: int, nb_chis: int
 ) -> list[float | None]:
     """Compute the chi angles for a residue in a trajectory."""
 
-    # MDTraj functions compute all chi_i present in the pdb
+    # MDTraj functions compute all chi_i present in the PDB
     fcts = [md.compute_chi1, md.compute_chi2, md.compute_chi3, md.compute_chi4]
     chis: list[float | None] = []
     for i in range(nb_chis):
         all_atom_idxs, all_angles_rad = fcts[i](traj)
-        # Get the indices of all residues containing chi_i
-        res_indices = np.array(
-            [traj.topology.atom(a[1]).residue.index for a in all_atom_idxs]
+        # Get the PDB residue sequence numbers of all residues that have a chi_i angle
+        all_pdb_res_nums = np.array(
+            [traj.topology.atom(a[1]).residue.resSeq for a in all_atom_idxs]
         )
-        # Find which computed angle corresponds to the target residue number
-        match = np.where(res_indices == res_nb - 1)[0]
+        # Find which computed angle corresponds to the target residue
+        match = np.where(all_pdb_res_nums == pdb_res_num)[0]
         if match.size == 0:
             raise ValueError(
-                f"Residue number {res_nb} (1-based) does not have a chi{i + 1} angle."
+                f"Residue with PDB residue sequence number {pdb_res_num} does not have a chi{i + 1} angle."
             )
         chis.append(float(np.degrees(all_angles_rad[0, match[0]])))
 
@@ -95,15 +95,22 @@ def _compute_chis(
 
 def query_closest(
     pdb_file: str | Path,
-    target_res_nb: int,
+    pdb_res_num: int | None = None,
+    res_position: int | None = None,
+    start_pdb_res_num: int = 1,
     charge: int,
     tautomer: str | None = None,
     sql_path: str | Path | None = None,
 ) -> dict[str, float | str | dict | None]:
     """Query the rotamer in the library with minimum side-chain angles distance to the given structure.
+    Give target residue either by its PDB residue sequence number (`pdb_res_num`) or by its position in the sequence
+    (`res_position`, with `start_pdb_res_num` if the sequence does not start at 1 in the PDB file).
     Args:
-        pdb_file: pdb file containning the target residue
-        target_res_nb: sequence number of the target residue in the pdb file
+        pdb_file: PDB file containning the target residue
+        pdb_res_num: residue sequence number of the target residue in the PDB file
+        res_position: position of the target residue in the amino acid sequence
+        start_pdb_res_num: residue sequence number of the first residue of the target chain in the PDB file
+            Only used when res_position is given
         charge: charge of the target residue
         tautomer: tautomer of the target residue if applicable ("D" or "E" for histidine)
         sql_path: path to the SQL database file
@@ -114,8 +121,24 @@ def query_closest(
     if sql_path is None:
         sql_path = SQL_PATH
 
+    if (res_position is None and pdb_res_num is None) or (
+        res_position is not None and pdb_res_num is not None
+    ):
+        raise ValueError(
+            "Residue must be given by exactly one of: res_position or pdb_res_num."
+        )
+    if res_position is not None:
+        pdb_res_num = start_pdb_res_num + res_position - 1
+
     traj = md.load(pdb_file)
-    target_name = traj.topology.residue(target_res_nb - 1).name
+    target_res = next(
+        (r for r in traj.topology.residues if r.resSeq == pdb_res_num), None
+    )
+    if target_res is None:
+        raise ValueError(
+            f"Residue with PDB residue sequence number {pdb_res_num} not found in {pdb_file}."
+        )
+    target_name = target_res.name
 
     # Only one possibility for Ala and Gly as they do not have chi angles
     if target_name in ["ALA", "GLY"]:
@@ -135,7 +158,7 @@ def query_closest(
         }
 
     nb_chis = NUMBER_OF_CHI_ANGLES[THREE_TO_ONE_AA[target_name]]
-    target_chis = _compute_chis(traj, target_res_nb, nb_chis)
+    target_chis = _compute_chis(traj, pdb_res_num, nb_chis)
 
     rotamer_ids, chi_array, descriptors_list = _get_rotamers_cached(
         str(sql_path), target_name, charge, tautomer
@@ -169,13 +192,15 @@ def query_closest(
 
 
 def query_closest_batch(
-    queries: list[tuple[str | Path, int, int, str | None]],
+    queries: list[dict],
     sql_path: str | Path | None = None,
     num_workers: int = 1,
 ) -> list[dict[str, float | str | dict | None]]:
     """Run query_closest for a list of PDB files, optionally in parallel.
     Args:
-        queries: list of (pdb_file, target_res_nb, charge, tautomer) tuples
+        queries: list of dicts, each containing kwargs for query_closest (except sql_path).
+            Each dict must include "pdb_file" and either "pdb_res_num" or "res_position"
+            (+ optional "start_pdb_res_num"), and "charge" and "tautomer"
         sql_path: path to the SQL database file
         num_workers: number of parallel worker processes
     Returns:
@@ -185,22 +210,21 @@ def query_closest_batch(
         sql_path = SQL_PATH
     sql_path_str = str(sql_path)
 
-    args_list = [
-        (str(pdb_file), res_nb, charge, tautomer, sql_path_str)
-        for pdb_file, res_nb, charge, tautomer in queries
-    ]
-
     if num_workers == 1:
-        return [query_closest(*args) for args in args_list]
+        return [query_closest(**{**q, "sql_path": sql_path_str}) for q in queries]
 
     with Pool(processes=num_workers) as pool:
-        return list(pool.starmap(query_closest, args_list))
+        jobs = [
+            pool.apply_async(query_closest, kwds={**q, "sql_path": sql_path_str})
+            for q in queries
+        ]
+        return [job.get() for job in jobs]
 
 
 def results_closest_into_dataframes(
     queries_output: list[dict[str, float | str | dict | None]],
     pdb_ids: list[int | str],
-    res_indices: list[int | str],
+    res_positions: list[int | str],
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Convert query_closest_batch outputs into two DataFrames.
 
@@ -209,8 +233,8 @@ def results_closest_into_dataframes(
             [row0_res0, row0_res1, ..., row1_res0, row1_res1, ...]
             i.e. the direct output of query_closest_batch when queries are built
             by iterating rows then residues.
-        pdb_ids: one ID per row (e.g. PDB IDs), length n_rows
-        res_indices: one index per residue position, length n_res
+        pdb_ids: one label per row (e.g. PDB IDs)
+        res_positions: one label per residue position (e.g. residue position numbers)
     Returns:
         rotamers_df: indexed by pdb_ids, columns res{label}_rotamer,
             res{label}_chis_dist, res{label}_chi1..chi4 for each residue
@@ -219,16 +243,16 @@ def results_closest_into_dataframes(
             If residues are not the same accross PDBs, the union of atomic descriptors
             will be saved with NaN for atoms missing in some PDBs.
     """
-    n_res = len(res_indices)
+    n_res = len(res_positions)
     rotamer_rows = []
     descriptors_rows = []
 
     for pdb_id in range(len(pdb_ids)):
         rotamer_row: dict = {}
         descriptor_row: dict = {}
-        for i, res_idx in enumerate(res_indices):
+        for i, res_position in enumerate(res_positions):
             result = queries_output[pdb_id * n_res + i]
-            prefix = f"res{res_idx}"
+            prefix = f"res{res_position}"
 
             rotamer_row[f"{prefix}_rotamer"] = result["rotamer_id"]
             rotamer_row[f"{prefix}_chis_dist"] = result["chis_distance"]
@@ -258,9 +282,11 @@ def results_closest_into_dataframes(
         for col in row:
             if col not in seen:
                 seen.add(col)
-                res_idx = int(col.split("_", 1)[0][3:])
-                res_cols.setdefault(res_idx, []).append(col)
-    ordered_cols = [col for res_idx in sorted(res_cols) for col in res_cols[res_idx]]
+                res_position = int(col.split("_", 1)[0][3:])
+                res_cols.setdefault(res_position, []).append(col)
+    ordered_cols = [
+        col for res_position in sorted(res_cols) for col in res_cols[res_position]
+    ]
     descriptors_df = descriptors_df[ordered_cols]
 
     return rotamers_df, descriptors_df
