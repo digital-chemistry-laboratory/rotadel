@@ -98,7 +98,7 @@ def query_closest(
     pdb_res_num: int | None = None,
     res_position: int | None = None,
     start_pdb_res_num: int = 1,
-    charge: int,
+    charge: int | None = None,
     tautomer: str | None = None,
     sql_path: str | Path | None = None,
 ) -> dict[str, float | str | dict | None]:
@@ -109,10 +109,12 @@ def query_closest(
         pdb_file: PDB file containning the target residue
         pdb_res_num: residue sequence number of the target residue in the PDB file
         res_position: position of the target residue in the amino acid sequence
-        start_pdb_res_num: residue sequence number of the first residue of the target chain in the PDB file
-            Only used when res_position is given
-        charge: charge of the target residue
-        tautomer: tautomer of the target residue if applicable ("D" or "E" for histidine)
+        start_pdb_res_num: residue sequence number of the first residue of the target chain in the PDB file;
+            only used when res_position is given
+        charge: charge of the target residue;
+            if none given, default charge at physiological pH will be used
+        tautomer: tautomer of the target residue if applicable ("D" or "E" for histidine);
+            if none given, default histidine tautomer will be used
         sql_path: path to the SQL database file
     Returns:
         Dictionary with ID, angles distance, side-chain chi angles,
@@ -139,6 +141,13 @@ def query_closest(
             f"Residue with PDB residue sequence number {pdb_res_num} not found in {pdb_file}."
         )
     target_name = target_res.name
+
+    if charge is None:
+        charge = PHYSIO_SPECIES[THREE_TO_ONE_AA[target_name]]["charge"]
+    if tautomer is None and target_name == "HIS" and charge == 0:
+        tautomer = PHYSIO_SPECIES[THREE_TO_ONE_AA[target_name]]["tautomer"]
+    elif tautomer is not None and target_name != "HIS":
+        raise ValueError("Tautomers can only be specified for histidine.")
 
     # Only one possibility for Ala and Gly as they do not have chi angles
     if target_name in ["ALA", "GLY"]:
@@ -200,7 +209,8 @@ def query_closest_batch(
     Args:
         queries: list of dicts, each containing kwargs for query_closest (except sql_path).
             Each dict must include "pdb_file" and either "pdb_res_num" or "res_position"
-            (+ optional "start_pdb_res_num"), and "charge" and "tautomer"
+            (+ optional "start_pdb_res_num"), and optionally "charge" and "tautomer".
+            If "charge" or "tautomer" are not given, default values at physiological pH will be used.
         sql_path: path to the SQL database file
         num_workers: number of parallel worker processes
     Returns:
