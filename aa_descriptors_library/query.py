@@ -16,8 +16,7 @@ from aa_descriptors_library.config import NDRD_PATH, SQL_PATH
 from aa_descriptors_library.constants import (
     NUMBER_OF_CHI_ANGLES,
     ONE_TO_THREE_AA,
-    PHYSIO_SPECIES,
-    THREE_TO_ONE_AA,
+    RES_SPECIES,
 )
 
 
@@ -29,15 +28,15 @@ def _read_ndrd(ndrd_csv: Path | str) -> pd.DataFrame:
 
 @lru_cache(maxsize=64)
 def _get_rotamers_cached(
-    sql_path: str, res: str, charge: int, tautomer: str | None
+    sql_path: str, res_letter: str, charge: int, tautomer: str | None
 ) -> tuple:
     """Fetch and cache rotamers for a given residue/charge/tautomer."""
     with sqlite3.connect(sql_path) as conn:
         cur = conn.cursor()
         cur.execute(
             """SELECT rotamer_id, chi1, chi2, chi3, chi4, descriptors
-            FROM rotamers_data WHERE res = ? AND charge = ? AND tautomer IS ?""",
-            (res, charge, tautomer),
+            FROM rotamers_data WHERE letter = ? AND charge = ? AND tautomer IS ?""",
+            (res_letter, charge, tautomer),
         )
         rows = cur.fetchall()
 
@@ -48,7 +47,7 @@ def _get_rotamers_cached(
     seen: set[tuple] = set()
     for rotamer_id, chi1, chi2, chi3, chi4, desc in rows:
         # Ignore chi3 from Dunbrack library for proline as normally defined with 2 chis
-        if res == "PRO":
+        if res_letter == "P":
             chi3 = None
         key = (chi1, chi2, chi3, chi4)
         if key in seen:
@@ -110,12 +109,12 @@ def query_closest(
         pdb_file: PDB file containning the target residue
         pdb_res_num: residue sequence number of the target residue in the PDB file
         res_position: position of the target residue in the amino acid sequence
-        start_pdb_res_num: residue sequence number of the first residue of the target chain in the PDB file;
-            only used when res_position is given
-        charge: charge of the target residue;
-            if none given, default charge at physiological pH will be used
-        tautomer: tautomer of the target residue if applicable ("D" or "E" for histidine);
-            if none given, default histidine tautomer will be used
+        start_pdb_res_num: residue sequence number of the first residue of the target chain in the PDB file.
+            Only used when res_position is given
+        charge: charge of the target residue.
+            If not given, default value will be deduced from residue name in PDB file
+        tautomer: tautomer of the target residue if applicable ("D" or "E" for histidine).
+            If not given, default value will be deduced from residue name in PDB file
         sql_path: path to the SQL database file
     Returns:
         Dictionary with ID, angles distance, side-chain chi angles,
@@ -133,7 +132,7 @@ def query_closest(
     if res_position is not None:
         pdb_res_num = res_position + start_pdb_res_num - 1
 
-    traj = md.load(pdb_file)
+    traj = md.load(pdb_file, standard_names=False)
     target_res = next(
         (r for r in traj.topology.residues if r.resSeq == pdb_res_num), None
     )
@@ -143,16 +142,19 @@ def query_closest(
         )
     target_name = target_res.name
 
+    # If they are not given as arguments, get charge/tautomer associated with residue name in PDB file
+    target_species = RES_SPECIES[target_name]
+    target_letter = target_species["letter"]
     if charge is None:
-        charge = PHYSIO_SPECIES[THREE_TO_ONE_AA[target_name]]["charge"]
-    if tautomer is None and target_name == "HIS" and charge == 0:
-        tautomer = PHYSIO_SPECIES[THREE_TO_ONE_AA[target_name]]["tautomer"]
-    elif tautomer is not None and target_name != "HIS":
+        charge = target_species["charge"]
+    if tautomer is None and target_letter == "H" and charge == 0:
+        tautomer = target_species["tautomer"]
+    elif tautomer is not None and target_letter != "H":
         raise ValueError("Tautomers can only be specified for histidine.")
 
     # Only one possibility for Ala and Gly as they do not have chi angles
-    if target_name in ["ALA", "GLY"]:
-        rotamer_id = "Aa0a0r0000c0" if target_name == "ALA" else "Ga0a0r0000c0"
+    if target_letter in ["A", "G"]:
+        rotamer_id = "Aa0a0r0000c0" if target_letter == "A" else "Ga0a0r0000c0"
         with sqlite3.connect(sql_path) as conn:
             cur = conn.cursor()
             cur.execute(
@@ -167,11 +169,11 @@ def query_closest(
             "descriptors": json.loads(descriptors),
         }
 
-    nb_chis = NUMBER_OF_CHI_ANGLES[THREE_TO_ONE_AA[target_name]]
+    nb_chis = NUMBER_OF_CHI_ANGLES[target_letter]
     target_chis = _compute_chis(traj, pdb_res_num, nb_chis)
 
     rotamer_ids, chi_array, descriptors_list = _get_rotamers_cached(
-        str(sql_path), target_name, charge, tautomer
+        str(sql_path), target_letter, charge, tautomer
     )
     if not rotamer_ids:
         raise ValueError(
@@ -211,7 +213,7 @@ def query_closest_batch(
         queries: list of dicts, each containing kwargs for query_closest (except sql_path).
             Each dict must include "pdb_file" and either "pdb_res_num" or "res_position"
             (+ optional "start_pdb_res_num"), and optionally "charge" and "tautomer".
-            If "charge" or "tautomer" are not given, default values at physiological pH will be used.
+            If "charge" or "tautomer" are not given, default values will be deduced from residue name in PDB file.
         sql_path: path to the SQL database file
         num_workers: number of parallel worker processes
     Returns:
@@ -358,8 +360,9 @@ def query_average(
         residue: one or three letter(s) code of the amino acid type
         left_neighbour: one or three letter(s) code of the amino acid left from `residue`
         right_neighbour: one or three letter(s) code of the amino acid right from `residue`
-        charge: charge of the residue
-        tautomer: tautomer of the residue if applicable ("D" or "E" for histidine)
+        charge: charge of the residue. If not given, default value will be used
+        tautomer: tautomer of the residue if applicable ("D" or "E" for histidine).
+            If not given, default value will be used
         sql_path: path to the SQL database file
         ndrd_path: path to the csv file with NDRD data
     Returns:
@@ -367,10 +370,6 @@ def query_average(
     """
     if len(residue) == 1:
         residue = ONE_TO_THREE_AA[residue.upper()]
-    if left_neighbour is not None and len(left_neighbour) == 1:
-        left_neighbour = ONE_TO_THREE_AA[left_neighbour.upper()]
-    if right_neighbour is not None and len(right_neighbour) == 1:
-        right_neighbour = ONE_TO_THREE_AA[right_neighbour.upper()]
 
     if sql_path is None:
         sql_path = SQL_PATH
@@ -378,10 +377,11 @@ def query_average(
         ndrd_path = NDRD_PATH
 
     if charge is None:
-        charge = PHYSIO_SPECIES[THREE_TO_ONE_AA[residue]]["charge"]
-    if residue == "HIS":
+        charge = RES_SPECIES[residue]["charge"]
+    aa_letter = RES_SPECIES[residue]["letter"]
+    if aa_letter == "H":
         if tautomer is None:
-            tautomer = PHYSIO_SPECIES[THREE_TO_ONE_AA[residue]]["tautomer"]
+            tautomer = RES_SPECIES[residue]["tautomer"]
         if tautomer is not None and charge != 0:
             raise ValueError(
                 "Histidine tautomers only available for charge 0, "
@@ -391,7 +391,7 @@ def query_average(
         if tautomer is not None:
             raise ValueError("Tautomers can only be specified for histidine.")
 
-    backbone_probs = parse_ndrd(ndrd_path, residue, left_neighbour, right_neighbour)
+    backbone_probs = parse_ndrd(ndrd_path, aa_letter, left_neighbour, right_neighbour)
 
     def calc_weighted_desc(avg_desc, weight, desc):
         for key, value in desc.items():
@@ -405,8 +405,8 @@ def query_average(
         cur = conn.cursor()
         cur.execute(
             """SELECT prob, phi, psi, descriptors FROM rotamers_data
-            WHERE res = ? AND charge = ? AND tautomer IS ?""",
-            (residue, charge, tautomer),
+            WHERE letter = ? AND charge = ? AND tautomer IS ?""",
+            (aa_letter, charge, tautomer),
         )
 
         avg_descriptors = {}
@@ -414,7 +414,7 @@ def query_average(
         for prob_sidechain, phi, psi, desc_str in cur.fetchall():
 
             # Fetch normalised backbone probability for the given phi & psi
-            if residue in ["ALA", "GLY"]:
+            if aa_letter in ["A", "G"]:
                 prob_backbone = 1.0
             else:
                 prob_backbone = backbone_probs.loc[
@@ -445,9 +445,9 @@ def parse_ndrd(
     """Parse the NDRD csv file to get the backbone probabilities for a given residue with or without neighbours.
     Args:
         ndrd_csv: path to the csv file with NDRD data (with phi/psi incremented by 10°)
-        residue: three letter code of the amino acid type
-        left_neighbour: three letter code of the amino acid left from `residue`
-        right_neighbour: three letter code of the amino acid right from `residue`
+        residue: one or three letter(s) code of the amino acid type
+        left_neighbour: one or three letter(s) code of the amino acid left from `residue`
+        right_neighbour: one or three letter(s) code of the amino acid right from `residue`
     Returns:
         Normalised backbone probabilities for each phi,psi of the given residue
             - phi,psi incremented by 10° from -180° to 170°
@@ -455,6 +455,13 @@ def parse_ndrd(
             - treat trans and cis prolines together
     """
     ndrd_step_10 = _read_ndrd(ndrd_csv)
+
+    if len(residue) == 1:
+        residue = ONE_TO_THREE_AA[residue.upper()]
+    if left_neighbour is not None and len(left_neighbour) == 1:
+        left_neighbour = ONE_TO_THREE_AA[left_neighbour.upper()]
+    if right_neighbour is not None and len(right_neighbour) == 1:
+        right_neighbour = ONE_TO_THREE_AA[right_neighbour.upper()]
 
     # Treat trans (PRO) and cis (CPR) prolines together
     residue = residue.upper()

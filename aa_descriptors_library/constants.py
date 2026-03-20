@@ -149,25 +149,60 @@ SIDECHAIN_SMARTS = {
     "Y": {0: "[CH2][c]1[cH][cH][c]([OH])[cH][cH]1"},
 }
 
-PHYSIO_SPECIES = {
-    "A": {"charge": 0, "tautomer": None},
-    "C": {"charge": 0, "tautomer": None},
-    "D": {"charge": -1, "tautomer": None},
-    "E": {"charge": -1, "tautomer": None},
-    "F": {"charge": 0, "tautomer": None},
-    "G": {"charge": 0, "tautomer": None},
-    "H": {"charge": 0, "tautomer": "E"},
-    "I": {"charge": 0, "tautomer": None},
-    "K": {"charge": +1, "tautomer": None},
-    "L": {"charge": 0, "tautomer": None},
-    "M": {"charge": 0, "tautomer": None},
-    "N": {"charge": 0, "tautomer": None},
-    "P": {"charge": 0, "tautomer": None},
-    "Q": {"charge": 0, "tautomer": None},
-    "R": {"charge": +1, "tautomer": None},
-    "S": {"charge": 0, "tautomer": None},
-    "T": {"charge": 0, "tautomer": None},
-    "V": {"charge": 0, "tautomer": None},
-    "W": {"charge": 0, "tautomer": None},
-    "Y": {"charge": 0, "tautomer": None},
+RES_SPECIES = {
+    # Alanine
+    "ALA": {"letter": "A", "charge": 0, "tautomer": None},
+    # Arginine
+    "ARG": {"letter": "R", "charge": +1, "tautomer": None},
+    # Asparagine
+    "ASN": {"letter": "N", "charge": 0, "tautomer": None},
+    # Aspartic acid
+    "ASP": {"letter": "D", "charge": -1, "tautomer": None},
+    "ASH": {"letter": "D", "charge": 0, "tautomer": None},
+    "ASPP": {"letter": "D", "charge": 0, "tautomer": None},
+    # Cysteine
+    "CYS": {"letter": "C", "charge": 0, "tautomer": None},
+    "CYX": {"letter": "C", "charge": 0, "tautomer": None},
+    "CYM": {"letter": "C", "charge": -1, "tautomer": None},
+    # Glutamic acid
+    "GLU": {"letter": "E", "charge": -1, "tautomer": None},
+    "GLH": {"letter": "E", "charge": 0, "tautomer": None},
+    "GLUP": {"letter": "E", "charge": 0, "tautomer": None},
+    # Glutamine
+    "GLN": {"letter": "Q", "charge": 0, "tautomer": None},
+    # Glycine
+    "GLY": {"letter": "G", "charge": 0, "tautomer": None},
+    # Histidine
+    "HIS": {"letter": "H", "charge": 0, "tautomer": "E"},
+    "HIE": {"letter": "H", "charge": 0, "tautomer": "E"},
+    "HSE": {"letter": "H", "charge": 0, "tautomer": "E"},
+    "HID": {"letter": "H", "charge": 0, "tautomer": "D"},
+    "HSD": {"letter": "H", "charge": 0, "tautomer": "D"},
+    "HIP": {"letter": "H", "charge": +1, "tautomer": None},
+    "HIH": {"letter": "H", "charge": +1, "tautomer": None},
+    "HSP": {"letter": "H", "charge": +1, "tautomer": None},
+    # Isoleucine
+    "ILE": {"letter": "I", "charge": 0, "tautomer": None},
+    # Leucine
+    "LEU": {"letter": "L", "charge": 0, "tautomer": None},
+    # Lysine
+    "LYS": {"letter": "K", "charge": +1, "tautomer": None},
+    "LSN": {"letter": "K", "charge": 0, "tautomer": None},
+    "LYN": {"letter": "K", "charge": 0, "tautomer": None},
+    # Methionine
+    "MET": {"letter": "M", "charge": 0, "tautomer": None},
+    # Phenylalanine
+    "PHE": {"letter": "F", "charge": 0, "tautomer": None},
+    # Proline
+    "PRO": {"letter": "P", "charge": 0, "tautomer": None},
+    # Serine
+    "SER": {"letter": "S", "charge": 0, "tautomer": None},
+    # Threonine
+    "THR": {"letter": "T", "charge": 0, "tautomer": None},
+    # Tryptophan
+    "TRP": {"letter": "W", "charge": 0, "tautomer": None},
+    # Tyrosine
+    "TYR": {"letter": "Y", "charge": 0, "tautomer": None},
+    # Valine
+    "VAL": {"letter": "V", "charge": 0, "tautomer": None},
 }
