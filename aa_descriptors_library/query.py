@@ -103,6 +103,7 @@ def query_closest(
     sql_path: str | Path | None = None,
 ) -> dict[str, float | str | dict | None]:
     """Query the rotamer in the library with minimum side-chain angles distance to the given structure.
+
     Give target residue either by its PDB residue sequence number (`pdb_res_num`) or by its position in the sequence
     (`res_position`, with `start_pdb_res_num` if the sequence does not start at 1 in the PDB file).
     Args:
@@ -127,10 +128,10 @@ def query_closest(
         res_position is not None and pdb_res_num is not None
     ):
         raise ValueError(
-            "Residue must be given by exactly one of: res_position or pdb_res_num."
+            "Target residue index must be given by either `res_position` or `pdb_res_num`."
         )
     if res_position is not None:
-        pdb_res_num = start_pdb_res_num + res_position - 1
+        pdb_res_num = res_position + start_pdb_res_num - 1
 
     traj = md.load(pdb_file)
     target_res = next(
@@ -234,7 +235,7 @@ def query_closest_batch(
 def results_closest_into_dataframes(
     queries_output: list[dict[str, float | str | dict | None]],
     pdb_ids: list[int | str],
-    res_positions: list[int | str],
+    res_labels: list[int | str],
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Convert query_closest_batch outputs into two DataFrames.
 
@@ -244,25 +245,25 @@ def results_closest_into_dataframes(
             i.e. the direct output of query_closest_batch when queries are built
             by iterating rows then residues.
         pdb_ids: one label per row (e.g. PDB IDs)
-        res_positions: one label per residue position (e.g. residue position numbers)
+        res_labels: one label per residue (e.g. residue position numbers)
     Returns:
-        rotamers_df: indexed by pdb_ids, columns res{label}_rotamer,
-            res{label}_chis_dist, res{label}_chi1..chi4 for each residue
-        descriptors_df: indexed by pdb_ids, columns res{label}_{desc} for molecular
-            descriptors and res{label}_{desc}_{atom} for atomic (nested) descriptors.
+        rotamers_df: indexed by `pdb_ids`, columns `res{label}_rotamer`,
+            `res{label}_chis_dist`, `res{label}_chi1..chi4` for each residue
+        descriptors_df: indexed by `pdb_ids`, columns `res{label}_{desc}` for molecular
+            descriptors and `res{label}_{desc}_{atom}` for atomic (nested) descriptors.
             If residues are not the same accross PDBs, the union of atomic descriptors
             will be saved with NaN for atoms missing in some PDBs.
     """
-    n_res = len(res_positions)
+    n_res = len(res_labels)
     rotamer_rows = []
     descriptors_rows = []
 
     for pdb_id in range(len(pdb_ids)):
         rotamer_row: dict = {}
         descriptor_row: dict = {}
-        for i, res_position in enumerate(res_positions):
+        for i, res_label in enumerate(res_labels):
             result = queries_output[pdb_id * n_res + i]
-            prefix = f"res{res_position}"
+            prefix = f"res{res_label}"
 
             rotamer_row[f"{prefix}_rotamer"] = result["rotamer_id"]
             rotamer_row[f"{prefix}_chis_dist"] = result["chis_distance"]
@@ -282,8 +283,8 @@ def results_closest_into_dataframes(
 
     rotamers_df = pd.DataFrame(rotamer_rows, index=pdb_ids)
     descriptors_df = pd.DataFrame(descriptors_rows, index=pdb_ids)
-    rotamers_df.index.name = "variant_id"
-    descriptors_df.index.name = "variant_id"
+    rotamers_df.index.name = "structure_id"
+    descriptors_df.index.name = "structure_id"
 
     # Group columns by residue without changing within-residue order
     res_cols: dict[int, list[str]] = {}
@@ -292,10 +293,10 @@ def results_closest_into_dataframes(
         for col in row:
             if col not in seen:
                 seen.add(col)
-                res_position = int(col.split("_", 1)[0][3:])
-                res_cols.setdefault(res_position, []).append(col)
+                res_label = int(col.split("_", 1)[0][3:])
+                res_cols.setdefault(res_label, []).append(col)
     ordered_cols = [
-        col for res_position in sorted(res_cols) for col in res_cols[res_position]
+        col for res_label in sorted(res_cols) for col in res_cols[res_label]
     ]
     descriptors_df = descriptors_df[ordered_cols]
 
