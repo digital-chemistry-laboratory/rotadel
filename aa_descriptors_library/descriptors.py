@@ -171,7 +171,7 @@ def calc_descriptors(
     descriptors["fukui_plus"] = clean_atomic_descriptors(
         xtb.get_fukui("electrophilicity"), sidechain_atoms_mapping, res
     )
-    descriptors["partial_charges"] = clean_atomic_descriptors(
+    descriptors["partial_charge"] = clean_atomic_descriptors(
         xtb.get_charges(), sidechain_atoms_mapping, res, decimals=5
     )
 
@@ -192,7 +192,7 @@ def calc_descriptors(
         for pair, value in bond_orders.items()
         if tuple(sorted(pair)) in rdkit_bonds
     }
-    descriptors["bond_orders"] = clean_atomic_descriptors(
+    descriptors["bond_order"] = clean_atomic_descriptors(
         {f"{k[0]}, {k[1]}": v for k, v in bond_orders_filtered.items()},
         sidechain_atoms_mapping,
         res,
