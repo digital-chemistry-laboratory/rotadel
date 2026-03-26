@@ -92,6 +92,93 @@ def _compute_chis(
     return chis + [None] * (4 - nb_chis)
 
 
+def get_descriptors_pdbs(
+    pdb_files: list[str | Path],
+    structure_labels: list[str],
+    pdb_res_nums: list[int] | None = None,
+    res_positions: list[int] | None = None,
+    start_pdb_res_num: int = 1,
+    charges: list[int] | None = None,
+    tautomers: list[str | None] | None = None,
+    output_dir: str | Path | None = None,
+    num_workers: int = 1,
+) -> None:
+    """Query descriptors of closest rotamers for a list of PDB files and save results in CSV files.
+
+    Give target residues either by PDB residue sequence number (`pdb_res_nums`) or by position in the sequence
+    (`res_positions`, with `start_pdb_res_num` if the sequence does not start at 1 in the PDB file).
+    Args:
+        pdb_files: paths to PDB files
+        structure_labels: labels for all structures/PDBs, to be used as index in output DataFrames
+        pdb_res_nums: residue sequence numbers of the target residues in the PDB file
+        res_positions: positions of the target residues in the amino acid sequence
+        start_pdb_res_num: residue sequence number of the first residue of the target chain in the PDB file.
+            Only used when res_positions is given
+        charges: charges for each residue to query.
+            If not given, default value will be deduced from residue name in PDB file
+        tautomers: tautomers for each residue to query, must be None except for histidine.
+            If not given, default value will be deduced from residue name in PDB file
+        start_pdb_res_num: PDB residue sequence number of the first residue of the chain of interest,
+            used to convert res_positions to PDB residue sequence numbers
+        output_dir: directory to save the output CSV files
+        num_workers: number of parallel worker processes to use for querying
+    Returns:
+        None, saves the results in two CSV files, one row per PDB structure
+            - "queries_matching_rotamers.csv": ID, chi angles, and angle distance for each matching closest rotamer
+            - "queries_descriptors.csv": descriptors of closest rotamers for each given residue
+    """
+    if output_dir is None:
+        output_dir = Path.cwd()
+    else:
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+    if (pdb_res_nums is None and res_positions is None) or (
+        pdb_res_nums is not None and res_positions is not None
+    ):
+        raise ValueError(
+            "Target residues indices must be given by either `pdb_res_nums` or `res_positions`."
+        )
+    elif pdb_res_nums is None:
+        pdb_res_nums = [None] * len(res_positions)
+        res_labels = res_positions
+    else:
+        res_positions = [None] * len(pdb_res_nums)
+        res_labels = pdb_res_nums
+
+    if charges is None:
+        charges = [None] * len(res_positions)
+    if tautomers is None:
+        tautomers = [None] * len(res_positions)
+    if len(charges) != len(res_positions) or len(tautomers) != len(res_positions):
+        raise ValueError(
+            "Length of charges and tautomers lists must match length of res_positions."
+        )
+    if len(structure_labels) != len(pdb_files):
+        raise ValueError("Length of structure_labels must match length of pdbs.")
+
+    queries = [
+        {
+            "pdb_file": str(pdb_file),
+            "pdb_res_num": pdb_num,
+            "res_position": res_pos,
+            "start_pdb_res_num": start_pdb_res_num,
+            "charge": charge,
+            "tautomer": tautomer,
+        }
+        for pdb_file in pdb_files
+        for pdb_num, res_pos, charge, tautomer in zip(
+            pdb_res_nums, res_positions, charges, tautomers
+        )
+    ]
+    results = query_closest_batch(queries, num_workers=num_workers)
+    rotamers_df, descriptors_df = results_closest_into_dataframes(
+        results, structure_labels, res_labels
+    )
+    rotamers_df.to_csv(output_dir / "queries_matching_rotamers.csv")
+    descriptors_df.to_csv(output_dir / "queries_descriptors.csv")
+
+
 def query_closest(
     pdb_file: str | Path,
     pdb_res_num: int | None = None,
