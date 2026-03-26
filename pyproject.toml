@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aa_descriptors_library"
+version = "0.1.0"
+authors = [
+    {name = "Lauriane Jacot-Descombes"},
+]
+
+[tool.setuptools.packages.find]
+include = ["aa_descriptors_library*"]
