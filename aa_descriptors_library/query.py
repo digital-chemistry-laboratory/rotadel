@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from multiprocessing import Pool
 from functools import lru_cache
 import json
@@ -124,8 +125,8 @@ def get_descriptors_pdbs(
         num_workers: number of parallel worker processes to use for querying
     Returns:
         None, saves the results in two CSV files, one row per PDB structure
+            - "queries_rotamer_descriptors.csv": descriptors of closest rotamers for each given residue
             - "queries_matching_rotamers.csv": ID, chi angles, and angle distance for each matching closest rotamer
-            - "queries_descriptors.csv": descriptors of closest rotamers for each given residue
     """
     if output_dir is None:
         output_dir = Path.cwd()
@@ -171,12 +172,12 @@ def get_descriptors_pdbs(
             pdb_res_nums, res_positions, charges, tautomers
         )
     ]
-    results = query_closest_batch(queries, num_workers=num_workers)
-    rotamers_df, descriptors_df = results_closest_into_dataframes(
-        results, structure_labels, res_labels
+    results = query_batch(query_closest, queries, num_workers=num_workers)
+    descriptors_df, rotamers_df = results_into_dataframes(
+        results, "closest", structure_labels, res_labels
     )
+    descriptors_df.to_csv(output_dir / "queries_rotamer_descriptors.csv")
     rotamers_df.to_csv(output_dir / "queries_matching_rotamers.csv")
-    descriptors_df.to_csv(output_dir / "queries_descriptors.csv")
 
 
 def query_closest(
@@ -290,76 +291,86 @@ def query_closest(
     }
 
 
-def query_closest_batch(
+def query_batch(
+    query_fn: Callable,
     queries: list[dict],
     sql_path: str | Path | None = None,
+    ndrd_path: str | Path | None = None,
     num_workers: int = 1,
-) -> list[dict[str, float | str | dict | None]]:
-    """Run query_closest for a list of PDB files, optionally in parallel.
+) -> list[dict]:
+    """Run a query function for a list of queries, optionally in parallel.
     Args:
-        queries: list of dicts, each containing kwargs for query_closest (except sql_path).
-            Each dict must include "pdb_file" and either "pdb_res_num" or "res_position"
-            (+ optional "start_pdb_res_num"), and optionally "charge" and "tautomer".
-            If "charge" or "tautomer" are not given, default values will be deduced from residue name in PDB file.
+        query_fn: query function to call, e.g. `query_closest` or `query_average`
+        queries: list of dicts, each containing kwargs for `query_fn` (except path arguments).
         sql_path: path to the SQL database file
+        ndrd_path: path to the NDRD csv file. Only passed if not None (only relevant for `query_average`)
         num_workers: number of parallel worker processes
     Returns:
         List of query results in the same order as the given queries
     """
     if sql_path is None:
         sql_path = SQL_PATH
-    sql_path_str = str(sql_path)
+    path_kwargs: dict = {"sql_path": str(sql_path)}
+    if ndrd_path is not None:
+        path_kwargs["ndrd_path"] = str(ndrd_path)
 
     if num_workers == 1:
-        return [query_closest(**{**q, "sql_path": sql_path_str}) for q in queries]
+        return [query_fn(**{**q, **path_kwargs}) for q in queries]
 
     with Pool(processes=num_workers) as pool:
-        jobs = [
-            pool.apply_async(query_closest, kwds={**q, "sql_path": sql_path_str})
-            for q in queries
-        ]
+        jobs = [pool.apply_async(query_fn, kwds={**q, **path_kwargs}) for q in queries]
         return [job.get() for job in jobs]
 
 
-def results_closest_into_dataframes(
+def results_into_dataframes(
     queries_output: list[dict[str, float | str | dict | None]],
-    pdb_ids: list[int | str],
+    query_type: str,
+    structure_ids: list[int | str],
     res_labels: list[int | str],
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Convert query_closest_batch outputs into two DataFrames.
-
+) -> pd.DataFrame | tuple[pd.DataFrame, pd.DataFrame]:
+    """Convert query_batch outputs into DataFrame(s).
     Args:
-        queries_output: flat list of query_closest results, ordered as
+        queries_output: flat list of query results, ordered as
             [row0_res0, row0_res1, ..., row1_res0, row1_res1, ...]
-            i.e. the direct output of query_closest_batch when queries are built
+            i.e. the direct output of query_batch when queries are built
             by iterating rows then residues.
-        pdb_ids: one label per row (e.g. PDB IDs)
+        query_type: `closest` or `average`
+        structure_ids: one label per row (e.g. PDB or variant IDs)
         res_labels: one label per residue (e.g. residue position numbers)
     Returns:
-        rotamers_df: indexed by `pdb_ids`, columns `res{label}_rotamer`,
-            `res{label}_chis_dist`, `res{label}_chi1..chi4` for each residue
-        descriptors_df: indexed by `pdb_ids`, columns `res{label}_{desc}` for molecular
+        - descriptors_df: indexed by `structure_ids`, columns `res{label}_{desc}` for molecular
             descriptors and `res{label}_{desc}_{atom}` for atomic (nested) descriptors.
-            If residues are not the same accross PDBs, the union of atomic descriptors
-            will be saved with NaN for atoms missing in some PDBs.
+            If residues are not the same across structures, the union of atomic descriptors
+            is used with NaN for atoms missing in some structures.
+        - rotamers_df: only returned for `query_type='closest'`. Indexed by `structure_ids`,
+            columns `res{label}_rotamer`, `res{label}_chis_dist`, `res{label}_chi1..chi4`
+            for each residue.
     """
+    if query_type not in ("closest", "average"):
+        raise ValueError("query_type must be 'closest' or 'average'.")
+
     n_res = len(res_labels)
     rotamer_rows = []
     descriptors_rows = []
 
-    for pdb_id in range(len(pdb_ids)):
+    for structure_id in range(len(structure_ids)):
         rotamer_row: dict = {}
         descriptor_row: dict = {}
         for i, res_label in enumerate(res_labels):
-            result = queries_output[pdb_id * n_res + i]
+            result = queries_output[structure_id * n_res + i]
             prefix = f"res{res_label}"
 
-            rotamer_row[f"{prefix}_rotamer"] = result["rotamer_id"]
-            rotamer_row[f"{prefix}_chis_dist"] = result["chis_distance"]
-            for chi_name, chi_val in result["chis"].items():
-                rotamer_row[f"{prefix}_{chi_name}"] = chi_val
+            if query_type == "closest":
+                rotamer_row[f"{prefix}_rotamer"] = result["rotamer_id"]
+                rotamer_row[f"{prefix}_chis_dist"] = result["chis_distance"]
+                for chi_name, chi_val in result["chis"].items():
+                    rotamer_row[f"{prefix}_{chi_name}"] = chi_val
+                descriptors = result["descriptors"]
+            else:
+                # For averaged queries, result is the descriptors dict directly
+                descriptors = result
 
-            for desc_key, desc_val in result["descriptors"].items():
+            for desc_key, desc_val in descriptors.items():
                 if isinstance(desc_val, dict):
                     # Atomic descriptor: flatten one column per atom
                     for atom, atom_val in desc_val.items():
@@ -367,12 +378,11 @@ def results_closest_into_dataframes(
                 else:
                     descriptor_row[f"{prefix}_{desc_key}"] = desc_val
 
-        rotamer_rows.append(rotamer_row)
+        if query_type == "closest":
+            rotamer_rows.append(rotamer_row)
         descriptors_rows.append(descriptor_row)
 
-    rotamers_df = pd.DataFrame(rotamer_rows, index=pdb_ids)
-    descriptors_df = pd.DataFrame(descriptors_rows, index=pdb_ids)
-    rotamers_df.index.name = "structure_id"
+    descriptors_df = pd.DataFrame(descriptors_rows, index=structure_ids)
     descriptors_df.index.name = "structure_id"
 
     # Group columns by residue without changing within-residue order
@@ -389,7 +399,13 @@ def results_closest_into_dataframes(
     ]
     descriptors_df = descriptors_df[ordered_cols]
 
-    return rotamers_df, descriptors_df
+    if query_type == "closest":
+        rotamers_df = pd.DataFrame(rotamer_rows, index=structure_ids)
+        rotamers_df.index.name = "structure_id"
+
+        return descriptors_df, rotamers_df
+
+    return descriptors_df
 
 
 def distance_angles(angles1: list[float], angles2: list[float]) -> float:
@@ -433,6 +449,83 @@ def round_dict(dictionary: dict, decimals: int = 6) -> dict:
     return dictionary
 
 
+def get_descriptors_sequences(
+    sequences: list[str],
+    structure_labels: list[str],
+    res_positions: list[int],
+    charges: list[int] | None = None,
+    tautomers: list[str | None] | None = None,
+    output_dir: str | Path | None = None,
+    num_workers: int = 1,
+) -> None:
+    """Query average descriptors for a list of amino acid sequences and save results in CSV file.
+    Args:
+        sequences: list of amino acid sequences (one-letter codes)
+        structure_labels: labels for all sequences, to be used as index in output DataFrames
+        res_positions: positions of the target residues in the amino acid sequence (1-indexed)
+        charges: charges for each residue to query.
+            If not given, default value will be deduced from residue name
+        tautomers: tautomers for each residue to query, must be None except for histidine.
+            If not given, default value will be deduced from residue name
+        output_dir: directory to save the output CSV files
+        num_workers: number of parallel worker processes to use for querying
+    Returns:
+        None, saves the results in "queries_average_descriptors.csv", one row per sequence,
+            average descriptors weighted by rotamer probability for each given residue
+    """
+    if output_dir is None:
+        output_dir = Path.cwd()
+    else:
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+    if charges is None:
+        charges = [None] * len(res_positions)
+    if tautomers is None:
+        tautomers = [None] * len(res_positions)
+    if len(charges) != len(res_positions) or len(tautomers) != len(res_positions):
+        raise ValueError(
+            "Length of charges and tautomers lists must match length of res_positions."
+        )
+    if len(structure_labels) != len(sequences):
+        raise ValueError("Length of structure_labels must match length of sequences.")
+
+    # Identical (residue, left_nb, right_nb, charge, tautomer) tuples across all sequences are computed only once
+    unique_queries: dict[tuple, dict] = {}
+    query_keys: list[tuple] = []
+    for seq in sequences:
+        for res_pos, charge, tautomer in zip(res_positions, charges, tautomers):
+            res_letter = seq[res_pos - 1]
+            left_nb = seq[res_pos - 2] if res_pos > 1 else None
+            right_nb = seq[res_pos] if res_pos < len(seq) else None
+            key = (res_letter, left_nb, right_nb, charge, tautomer)
+            query_keys.append(key)
+            if key not in unique_queries:
+                unique_queries[key] = {
+                    "residue": res_letter,
+                    "left_neighbour": left_nb,
+                    "right_neighbour": right_nb,
+                    "charge": charge,
+                    "tautomer": tautomer,
+                }
+
+    unique_key_order = list(unique_queries.keys())
+    unique_results = query_batch(
+        query_average,
+        [unique_queries[k] for k in unique_key_order],
+        num_workers=num_workers,
+    )
+    result_map = dict(zip(unique_key_order, unique_results))
+
+    # Reconstruct the flat results list in the original (sequences × residues) order
+    results = [result_map[key] for key in query_keys]
+
+    descriptors_df = results_into_dataframes(
+        results, "average", structure_labels, res_positions
+    )
+    descriptors_df.to_csv(output_dir / "queries_average_descriptors.csv")
+
+
 def query_average(
     residue: str,
     left_neighbour: str | None = None,
@@ -442,7 +535,7 @@ def query_average(
     sql_path: str | Path | None = None,
     ndrd_path: str | Path | None = None,
 ) -> dict[str, float | dict]:
-    """Calculate the weighted averaged descriptors for a given residue, charge, and tautomer.
+    """Calculate the weighted average descriptors for a given residue, charge, and tautomer.
     Args:
         residue: one or three letter(s) code of the amino acid type
         left_neighbour: one or three letter(s) code of the amino acid left from `residue`
@@ -453,7 +546,7 @@ def query_average(
         sql_path: path to the SQL database file
         ndrd_path: path to the csv file with NDRD data
     Returns:
-        Dictionary with averaged descriptors weighted by the rotamers probability
+        Dictionary with average descriptors weighted by the rotamers probability
     """
     if len(residue) == 1:
         residue = ONE_TO_THREE_AA[residue.upper()]
