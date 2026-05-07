@@ -18,7 +18,40 @@ from aa_descriptors_library.constants import (
     NUMBER_OF_CHI_ANGLES,
     ONE_TO_THREE_AA,
     RES_SPECIES,
+    SIDECHAIN_PKA,
+    THREE_TO_ONE_AA,
 )
+
+
+def charge_from_ph(residue: str, pH: float) -> int:
+    """Deduce sidechain charge at a given pH from sidechain pKa.
+
+    For amino acids whose sidechain has a single charge state in the library
+    (A, F, G, I, L, M, N, P, Q, R, S, T, V, W, Y), the default charge from
+    `constants.RES_SPECIES` is returned regardless of pH.
+
+    Args:
+        residue: one or three letter(s) code of the amino acid type
+        pH: pH value.
+    Returns:
+        Sidechain charge.
+    """
+    residue = residue.upper()
+    if len(residue) == 3:
+        residue = THREE_TO_ONE_AA[residue]
+
+    if residue in SIDECHAIN_PKA:
+        pKa = SIDECHAIN_PKA[residue]
+        if residue in ("D", "E"):
+            charge = -1 if pH > pKa else 0
+        elif residue == "C":
+            charge = 0 if pH < pKa else -1
+        elif residue in ("K", "H"):
+            charge = +1 if pH < pKa else 0
+    else:
+        charge = RES_SPECIES[ONE_TO_THREE_AA[residue]]["charge"]
+
+    return charge
 
 
 @lru_cache()
@@ -99,6 +132,7 @@ def get_descriptors_pdbs(
     pdb_res_nums: list[int] | None = None,
     res_positions: list[int] | None = None,
     start_pdb_res_num: int = 1,
+    pH: float | None = None,
     charges: list[int] | None = None,
     tautomers: list[str | None] | None = None,
     output_dir: str | Path | None = None,
@@ -115,8 +149,11 @@ def get_descriptors_pdbs(
         res_positions: positions of the target residues in the amino acid sequence
         start_pdb_res_num: residue sequence number of the first residue of the target chain in the PDB file.
             Only used when res_positions is given
-        charges: charges for each residue to query.
-            If not given, default value will be deduced from residue name in PDB file
+        pH: if given, deduce charge of each residue from sidechain pKa at this pH.
+            Only affects D, E, C, H, K (other amino acids only have one charge state in the library).
+            Mutually exclusive with `charges`
+        charges: charges for each residue to query, mutually exclusive with `pH`.
+            If not given, default value will be deduced from given pH or residue name in PDB file
         tautomers: tautomers for each residue to query, must be None except for histidine.
             If not given, default value will be deduced from residue name in PDB file
         start_pdb_res_num: PDB residue sequence number of the first residue of the chain of interest,
@@ -133,6 +170,9 @@ def get_descriptors_pdbs(
     else:
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
+
+    if charges is not None and pH is not None:
+        raise ValueError("Specify either `charges` or `pH`, not both.")
 
     if (pdb_res_nums is None and res_positions is None) or (
         pdb_res_nums is not None and res_positions is not None
@@ -164,6 +204,7 @@ def get_descriptors_pdbs(
             "pdb_res_num": pdb_num,
             "res_position": res_pos,
             "start_pdb_res_num": start_pdb_res_num,
+            "pH": pH,
             "charge": charge,
             "tautomer": tautomer,
         }
@@ -185,6 +226,7 @@ def query_closest(
     pdb_res_num: int | None = None,
     res_position: int | None = None,
     start_pdb_res_num: int = 1,
+    pH: float | None = None,
     charge: int | None = None,
     tautomer: str | None = None,
     sql_path: str | Path | None = None,
@@ -199,8 +241,11 @@ def query_closest(
         res_position: position of the target residue in the amino acid sequence
         start_pdb_res_num: residue sequence number of the first residue of the target chain in the PDB file.
             Only used when res_position is given
-        charge: charge of the target residue.
-            If not given, default value will be deduced from residue name in PDB file
+        pH: if given, deduce charge of each residue from sidechain pKa at this pH.
+            Only affects D, E, C, H, K (other amino acids only have one charge state in the library).
+            Mutually exclusive with `charges`
+        charge: charge of the target residue, mutually exclusive with `pH`.
+            If not given, default value will be deduced from given pH or residue name in PDB file
         tautomer: tautomer of the target residue if applicable ("D" or "E" for histidine).
             If not given, default value will be deduced from residue name in PDB file
         sql_path: path to the SQL database file
@@ -210,6 +255,9 @@ def query_closest(
     """
     if sql_path is None:
         sql_path = SQL_PATH
+
+    if charge is not None and pH is not None:
+        raise ValueError("Specify either `charge` or `pH`, not both.")
 
     if (res_position is None and pdb_res_num is None) or (
         res_position is not None and pdb_res_num is not None
@@ -233,7 +281,9 @@ def query_closest(
     # If they are not given as arguments, get charge/tautomer associated with residue name in PDB file
     target_species = RES_SPECIES[target_name]
     target_letter = target_species["letter"]
-    if charge is None:
+    if pH is not None:
+        charge = charge_from_ph(target_letter, pH)
+    elif charge is None:
         charge = target_species["charge"]
     if tautomer is None and target_letter == "H" and charge == 0:
         tautomer = target_species["tautomer"]
@@ -453,6 +503,7 @@ def get_descriptors_sequences(
     sequences: list[str],
     structure_labels: list[str],
     res_positions: list[int],
+    pH: float | None = None,
     charges: list[int] | None = None,
     tautomers: list[str | None] | None = None,
     output_dir: str | Path | None = None,
@@ -463,8 +514,11 @@ def get_descriptors_sequences(
         sequences: list of amino acid sequences (one-letter codes)
         structure_labels: labels for all sequences, to be used as index in output DataFrames
         res_positions: positions of the target residues in the amino acid sequence (1-indexed)
-        charges: charges for each residue to query.
-            If not given, default value will be deduced from residue name
+        pH: if given, deduce charge of each residue from sidechain pKa at this pH.
+            Only affects D, E, C, H, K (other amino acids only have one charge state in the library).
+            Mutually exclusive with `charges`
+        charges: charges for each residue to query, mutually exclusive with `pH`.
+            If not given, default value will be deduced from given pH or residue name
         tautomers: tautomers for each residue to query, must be None except for histidine.
             If not given, default value will be deduced from residue name
         output_dir: directory to save the output CSV files
@@ -478,6 +532,9 @@ def get_descriptors_sequences(
     else:
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
+
+    if charges is not None and pH is not None:
+        raise ValueError("Specify either `charges` or `pH`, not both.")
 
     if charges is None:
         charges = [None] * len(res_positions)
@@ -505,6 +562,7 @@ def get_descriptors_sequences(
                     "residue": res_letter,
                     "left_neighbour": left_nb,
                     "right_neighbour": right_nb,
+                    "pH": pH,
                     "charge": charge,
                     "tautomer": tautomer,
                 }
@@ -530,6 +588,7 @@ def query_average(
     residue: str,
     left_neighbour: str | None = None,
     right_neighbour: str | None = None,
+    pH: float | None = None,
     charge: int | None = None,
     tautomer: str | None = None,
     sql_path: str | Path | None = None,
@@ -540,7 +599,11 @@ def query_average(
         residue: one or three letter(s) code of the amino acid type
         left_neighbour: one or three letter(s) code of the amino acid left from `residue`
         right_neighbour: one or three letter(s) code of the amino acid right from `residue`
-        charge: charge of the residue. If not given, default value will be used
+        pH: if given, deduce charge of each residue from sidechain pKa at this pH.
+            Only affects D, E, C, H, K (other amino acids only have one charge state in the library).
+            Mutually exclusive with `charges`
+        charge: charge of the residue, mutually exclusive with `pH`.
+            If not given, default value will be deduced from given pH or residue name
         tautomer: tautomer of the residue if applicable ("D" or "E" for histidine).
             If not given, default value will be used
         sql_path: path to the SQL database file
@@ -556,11 +619,16 @@ def query_average(
     if ndrd_path is None:
         ndrd_path = NDRD_PATH
 
-    if charge is None:
-        charge = RES_SPECIES[residue]["charge"]
+    if charge is not None and pH is not None:
+        raise ValueError("Specify either `charge` or `pH`, not both.")
+
     aa_letter = RES_SPECIES[residue]["letter"]
+    if pH is not None:
+        charge = charge_from_ph(aa_letter, pH)
+    elif charge is None:
+        charge = RES_SPECIES[residue]["charge"]
     if aa_letter == "H":
-        if tautomer is None:
+        if tautomer is None and charge == 0:
             tautomer = RES_SPECIES[residue]["tautomer"]
         if tautomer is not None and charge != 0:
             raise ValueError(

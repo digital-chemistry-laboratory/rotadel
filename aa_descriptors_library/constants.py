@@ -149,6 +149,14 @@ SIDECHAIN_SMARTS = {
     "Y": {0: "[CH2][c]1[cH][cH][c]([OH])[cH][cH]1"},
 }
 
+SIDECHAIN_PKA = {
+    "D": 3.65,
+    "E": 4.25,
+    "H": 6.0,
+    "C": 8.18,
+    "K": 10.53,
+}
+
 RES_SPECIES = {
     # Alanine
     "ALA": {"letter": "A", "charge": 0, "tautomer": None},
