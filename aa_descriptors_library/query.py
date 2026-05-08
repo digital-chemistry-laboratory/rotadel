@@ -1,4 +1,4 @@
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from multiprocessing import Pool
 from functools import lru_cache
 import json
@@ -127,14 +127,14 @@ def _compute_chis(
 
 
 def get_descriptors_pdbs(
-    pdb_files: list[str | Path],
-    structure_labels: list[str],
-    pdb_res_nums: list[int] | None = None,
-    res_positions: list[int] | None = None,
+    pdb_files: Sequence[str | Path],
+    structure_labels: Sequence[str],
+    pdb_res_nums: Sequence[int] | None = None,
+    res_positions: Sequence[int] | None = None,
     start_pdb_res_num: int = 1,
     pH: float | None = None,
-    charges: list[int] | None = None,
-    tautomers: list[str | None] | None = None,
+    charges: Sequence[int] | None = None,
+    tautomers: Sequence[str | None] | None = None,
     output_dir: str | Path | None = None,
     num_workers: int = 1,
 ) -> None:
@@ -343,7 +343,7 @@ def query_closest(
 
 def query_batch(
     query_fn: Callable,
-    queries: list[dict],
+    queries: Sequence[dict],
     sql_path: str | Path | None = None,
     ndrd_path: str | Path | None = None,
     num_workers: int = 1,
@@ -373,10 +373,10 @@ def query_batch(
 
 
 def results_into_dataframes(
-    queries_output: list[dict[str, float | str | dict | None]],
+    queries_output: Sequence[dict[str, float | str | dict | None]],
     query_type: str,
-    structure_ids: list[int | str],
-    res_labels: list[int | str],
+    structure_ids: Sequence[int | str],
+    res_labels: Sequence[int | str],
 ) -> pd.DataFrame | tuple[pd.DataFrame, pd.DataFrame]:
     """Convert query_batch outputs into DataFrame(s).
     Args:
@@ -458,7 +458,7 @@ def results_into_dataframes(
     return descriptors_df
 
 
-def distance_angles(angles1: list[float], angles2: list[float]) -> float:
+def distance_angles(angles1: Sequence[float], angles2: Sequence[float]) -> float:
     """Calculate the distance between two sets of angles.
     Args:
         angles1: first set of angles in degrees
@@ -500,12 +500,12 @@ def round_dict(dictionary: dict, decimals: int = 6) -> dict:
 
 
 def get_descriptors_sequences(
-    sequences: list[str],
-    structure_labels: list[str],
-    res_positions: list[int],
+    sequences: Sequence[str],
+    structure_labels: Sequence[str],
+    res_positions: Sequence[int],
     pH: float | None = None,
-    charges: list[int] | None = None,
-    tautomers: list[str | None] | None = None,
+    charges: Sequence[int] | None = None,
+    tautomers: Sequence[str | None] | None = None,
     output_dir: str | Path | None = None,
     num_workers: int = 1,
 ) -> None:
