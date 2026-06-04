@@ -501,7 +501,7 @@ def round_dict(dictionary: dict, decimals: int = 6) -> dict:
 
 def get_descriptors_sequences(
     sequences: Sequence[str],
-    structure_labels: Sequence[str],
+    sequence_labels: Sequence[str],
     res_positions: Sequence[int],
     pH: float | None = None,
     charges: Sequence[int] | None = None,
@@ -512,7 +512,7 @@ def get_descriptors_sequences(
     """Query average descriptors for a list of amino acid sequences and save results in CSV file.
     Args:
         sequences: list of amino acid sequences (one-letter codes)
-        structure_labels: labels for all sequences, to be used as index in output DataFrames
+        sequence_labels: labels for all sequences, to be used as index in output DataFrames
         res_positions: positions of the target residues in the amino acid sequence (1-indexed)
         pH: if given, deduce charge of each residue from sidechain pKa at this pH.
             Only affects D, E, C, H, K (other amino acids only have one charge state in the library).
@@ -544,8 +544,8 @@ def get_descriptors_sequences(
         raise ValueError(
             "Length of charges and tautomers lists must match length of res_positions."
         )
-    if len(structure_labels) != len(sequences):
-        raise ValueError("Length of structure_labels must match length of sequences.")
+    if len(sequence_labels) != len(sequences):
+        raise ValueError("Length of sequence_labels must match length of sequences.")
 
     # Identical (residue, left_nb, right_nb, charge, tautomer) tuples across all sequences are computed only once
     unique_queries: dict[tuple, dict] = {}
@@ -579,7 +579,7 @@ def get_descriptors_sequences(
     results = [result_map[key] for key in query_keys]
 
     descriptors_df = results_into_dataframes(
-        results, "average", structure_labels, res_positions
+        results, "average", sequence_labels, res_positions
     )
     descriptors_df.to_csv(output_dir / "queries_average_descriptors.csv")
 
