@@ -102,9 +102,19 @@ def _get_rotamers_cached(
 
 
 def _compute_chis(
-    traj: "md.Trajectory", pdb_res_num: int, nb_chis: int
+    traj: "md.Trajectory",
+    pdb_res_num: int,
+    nb_chis: int,
+    chain: str | None = None,
 ) -> list[float | None]:
-    """Compute the chi angles for a residue in a trajectory."""
+    """Compute the chi angles for a residue in a trajectory.
+
+    Args:
+        traj: mdtraj trajectory of PDb file
+        pdb_res_num: PDB residue sequence number of the target residue
+        nb_chis: number of chi angles to compute
+        chain: PDB chain ID containing the target residue. If None, the first residue matching pdb_res_num is taken
+    """
 
     # MDTraj functions compute all chi_i present in the PDB
     fcts = [md.compute_chi1, md.compute_chi2, md.compute_chi3, md.compute_chi4]
@@ -117,9 +127,20 @@ def _compute_chis(
         )
         # Find which computed angle corresponds to the target residue
         match = np.where(all_pdb_res_nums == pdb_res_num)[0]
+        if chain is not None:
+            # Keep only the match located in the requested chain
+            match_chain_ids = np.array(
+                [
+                    traj.topology.atom(all_atom_idxs[k][1]).residue.chain.chain_id
+                    for k in match
+                ]
+            )
+            match = match[match_chain_ids == chain]
         if match.size == 0:
             raise ValueError(
-                f"Residue with PDB residue sequence number {pdb_res_num} does not have a chi{i + 1} angle."
+                f"Residue with PDB residue sequence number {pdb_res_num}"
+                + (f" in chain {chain}" if chain is not None else "")
+                + f" does not have a chi{i + 1} angle."
             )
         chis.append(float(np.degrees(all_angles_rad[0, match[0]])))
 
@@ -132,6 +153,7 @@ def get_descriptors_pdbs(
     pdb_res_nums: Sequence[int] | None = None,
     res_positions: Sequence[int] | None = None,
     start_pdb_res_num: int = 1,
+    chains: Sequence[str | None] | None = None,
     pH: float | None = None,
     charges: Sequence[int] | None = None,
     tautomers: Sequence[str | None] | None = None,
@@ -149,6 +171,7 @@ def get_descriptors_pdbs(
         res_positions: positions of the target residues in the amino acid sequence
         start_pdb_res_num: residue sequence number of the first residue of the target chain in the PDB file.
             Only used when res_positions is given
+        chains: PDB chain IDs for each residue to query. If not given, first chain in PDB is used
         pH: if given, deduce charge of each residue from sidechain pKa at this pH.
             Only affects D, E, C, H, K (other amino acids only have one charge state in the library).
             Mutually exclusive with `charges`
@@ -191,9 +214,15 @@ def get_descriptors_pdbs(
         charges = [None] * len(res_positions)
     if tautomers is None:
         tautomers = [None] * len(res_positions)
-    if len(charges) != len(res_positions) or len(tautomers) != len(res_positions):
+    if chains is None:
+        chains = [None] * len(res_positions)
+    if (
+        len(charges) != len(res_positions)
+        or len(tautomers) != len(res_positions)
+        or len(chains) != len(res_positions)
+    ):
         raise ValueError(
-            "Length of charges and tautomers lists must match length of res_positions."
+            "If given, length of charges, tautomers, and chains lists must match length of res_positions."
         )
     if len(structure_labels) != len(pdb_files):
         raise ValueError("Length of structure_labels must match length of pdbs.")
@@ -204,13 +233,14 @@ def get_descriptors_pdbs(
             "pdb_res_num": pdb_num,
             "res_position": res_pos,
             "start_pdb_res_num": start_pdb_res_num,
+            "chain": chain,
             "pH": pH,
             "charge": charge,
             "tautomer": tautomer,
         }
         for pdb_file in pdb_files
-        for pdb_num, res_pos, charge, tautomer in zip(
-            pdb_res_nums, res_positions, charges, tautomers
+        for pdb_num, res_pos, chain, charge, tautomer in zip(
+            pdb_res_nums, res_positions, chains, charges, tautomers
         )
     ]
     results = query_batch(query_closest, queries, num_workers=num_workers)
@@ -226,6 +256,7 @@ def query_closest(
     pdb_res_num: int | None = None,
     res_position: int | None = None,
     start_pdb_res_num: int = 1,
+    chain: str | None = None,
     pH: float | None = None,
     charge: int | None = None,
     tautomer: str | None = None,
@@ -241,6 +272,7 @@ def query_closest(
         res_position: position of the target residue in the amino acid sequence
         start_pdb_res_num: residue sequence number of the first residue of the target chain in the PDB file.
             Only used when res_position is given
+        chain: PDB chain ID containing the target residue. If None, the first residue matching pdb_res_num is taken
         pH: if given, deduce charge of each residue from sidechain pKa at this pH.
             Only affects D, E, C, H, K (other amino acids only have one charge state in the library).
             Mutually exclusive with `charges`
@@ -270,11 +302,18 @@ def query_closest(
 
     traj = md.load(pdb_file, standard_names=False)
     target_res = next(
-        (r for r in traj.topology.residues if r.resSeq == pdb_res_num), None
+        (
+            r
+            for r in traj.topology.residues
+            if r.resSeq == pdb_res_num and (chain is None or r.chain.chain_id == chain)
+        ),
+        None,
     )
     if target_res is None:
         raise ValueError(
-            f"Residue with PDB residue sequence number {pdb_res_num} not found in {pdb_file}."
+            f"Residue with PDB residue sequence number {pdb_res_num}"
+            + (f" in chain {chain}" if chain is not None else "")
+            + f" not found in {pdb_file}."
         )
     target_name = target_res.name
 
@@ -308,7 +347,7 @@ def query_closest(
         }
 
     nb_chis = NUMBER_OF_CHI_ANGLES[target_letter]
-    target_chis = _compute_chis(traj, pdb_res_num, nb_chis)
+    target_chis = _compute_chis(traj, pdb_res_num, nb_chis, chain)
 
     rotamer_ids, chi_array, descriptors_list = _get_rotamers_cached(
         str(sql_path), target_letter, charge, tautomer
