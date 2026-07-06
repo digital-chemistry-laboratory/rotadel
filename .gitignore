@@ -11,7 +11,6 @@ __pycache__/
 *.code-workspace
 
 ### SLURM jobs related
-submit*
 slurm*
 node_list*
 *.log
@@ -22,7 +21,6 @@ logs
 
 ### Project related
 # Data
-Dunbrack_library
 data*/
 # All test folders and files
 test*

@@ -25,7 +25,7 @@ The ID format is (all attached):
 Save into a csv file to use to with GNU parallel to run calculations on all rotamers.
 """
 
-dunbrack_json = "/cluster/project/jorner/lajacot/projects/aa-descriptors-library/aa_descriptors_library/data/angles_Dunbrack.json"
+dunbrack_json = "/cluster/project/jorner/lajacot/projects/aa-descriptors-library/data/angles_Dunbrack.json"
 with open(dunbrack_json, "r") as f:
     all_rotamers_data = json.load(f)
 
@@ -49,4 +49,4 @@ for rotamer_id, entry in all_rotamers_data.items():
         ids_species.append(f"{rotamer_id}c0")
 df = pd.DataFrame(ids_species)
 
-df.to_csv("data/keys_species.csv", index=False, header=False)
+df.to_csv("data/keys_species_initial.csv", index=False, header=False)

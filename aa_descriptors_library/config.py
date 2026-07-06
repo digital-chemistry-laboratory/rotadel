@@ -1,7 +1,7 @@
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
-SQL_PATH = ROOT_DIR / "data" / "merged_whole_filtered_library_sql.db"
+SQL_PATH = ROOT_DIR / "database" / "rotadel.db"
 NDRD_PATH = ROOT_DIR / "data" / "ndrd_step10.csv"
 ANGLES_JSON_PATH = ROOT_DIR / "data" / "angles_combined.json"
 

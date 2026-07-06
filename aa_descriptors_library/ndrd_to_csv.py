@@ -6,7 +6,7 @@ import pandas as pd
 
 from aa_descriptors_library.config import NDRD_PATH
 
-lib_file = "/cluster/project/jorner/lajacot/projects/aa-descriptors-library/Dunbrack_library/ndrd/NDRD_TCBIG.txt"
+lib_file = "/cluster/project/jorner/lajacot/projects/aa-descriptors-library/data/Dunbrack_libraries/ndrd/NDRD_TCBIG.txt"
 
 column_names = [
     "res",

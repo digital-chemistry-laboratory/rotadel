@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --mem-per-cpu=2GB
 #SBATCH -A es_jorner
-#SBATCH -t 48:00:00
+#SBATCH -t 120:00:00
 #SBATCH -J series_rot
 
 start_time=$(date +%s)
