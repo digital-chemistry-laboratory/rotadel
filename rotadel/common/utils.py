@@ -4,7 +4,7 @@ from morfeus.typing import Array1DStr, Array2DFloat
 from morfeus.utils import convert_elements
 from spyrmsd import rmsd, graph
 
-from aa_descriptors_library.io_atoms import read_geo
+from rotadel.common.io_atoms import read_geo
 
 
 def rmsd_symmetric(

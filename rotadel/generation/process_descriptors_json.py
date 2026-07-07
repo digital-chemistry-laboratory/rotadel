@@ -5,7 +5,7 @@ import re
 import sys
 import traceback
 
-from aa_descriptors_library.io import merge_json_files
+from rotadel.common.io import merge_json_files
 
 
 def parse_args():

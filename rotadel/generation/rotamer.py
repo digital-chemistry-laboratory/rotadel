@@ -5,12 +5,12 @@ import json
 import sqlite3
 import numpy as np
 
-from aa_descriptors_library.optimisation import (
+from rotadel.generation.optimisation import (
     get_opt_structures,
     has_structure_problems,
     start_rotamer_geo,
 )
-from aa_descriptors_library.descriptors import calc_descriptors
+from rotadel.generation.descriptors import calc_descriptors
 
 
 class Rotamer:

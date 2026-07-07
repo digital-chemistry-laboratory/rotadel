@@ -5,8 +5,8 @@ import sqlite3
 import time
 from typing import Iterable
 
-from aa_descriptors_library.config import SQL_PATH
-from aa_descriptors_library.sql import count_rotamers_in_sql
+from rotadel.common.config import SQL_PATH
+from rotadel.common.sql import count_rotamers_in_sql
 
 
 def parse_args():

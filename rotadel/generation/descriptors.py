@@ -5,11 +5,11 @@ from rdkit import Chem
 from rdkit.Chem.rdDetermineBonds import DetermineBonds
 from typing import Any
 
-from aa_descriptors_library.constants import (
+from rotadel.common.constants import (
     NON_PERMUTABLE_INDICES_SIDECHAIN,
     THREE_TO_ONE_AA,
 )
-from aa_descriptors_library.io_atoms import xyz_string
+from rotadel.common.io_atoms import xyz_string
 
 
 def move_central_atom(

@@ -5,8 +5,10 @@ The angles and probabilities are extracted, and a unique ID is generated for eac
 
 import pandas as pd
 
-lib_file = "/cluster/project/jorner/lajacot/projects/aa-descriptors-library/data/Dunbrack_libraries/rotamer/ALL_rotamers.lib"
-json_output = "/cluster/project/jorner/lajacot/projects/aa-descriptors-library/data/angles_Dunbrack.json"
+from rotadel.common.config import ROOT_DIR
+
+lib_file = ROOT_DIR / "data" / "Dunbrack_libraries" / "rotamer" / "ALL_rotamers.lib"
+json_output = ROOT_DIR / "data" / "angles_Dunbrack.json"
 
 column_names = [
     "res",

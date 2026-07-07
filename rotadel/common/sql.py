@@ -4,7 +4,7 @@ import json
 import numpy as np
 import pandas as pd
 
-from aa_descriptors_library.config import SQL_PATH
+from rotadel.common.config import SQL_PATH
 
 
 def init_sql_db(db_path: str | Path) -> None:

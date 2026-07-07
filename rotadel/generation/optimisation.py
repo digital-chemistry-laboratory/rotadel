@@ -15,7 +15,7 @@ import shutil
 import subprocess
 from typing import Any
 
-from aa_descriptors_library.io_atoms import (
+from rotadel.common.io_atoms import (
     convert_file,
     idx_atoms_at_position,
     map_atom_indices,
@@ -23,12 +23,12 @@ from aa_descriptors_library.io_atoms import (
     read_geo,
     replace_backbone,
 )
-from aa_descriptors_library.constants import (
+from rotadel.common.constants import (
     BACKBONE_SMARTS,
     NUMBER_OF_CHI_ANGLES,
     SIDECHAIN_SMARTS,
 )
-from aa_descriptors_library import config
+from rotadel.common import config
 
 
 def gen_dihedral_constraints(

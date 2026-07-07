@@ -1,6 +1,8 @@
 import json
 import pandas as pd
 
+from rotadel.common.config import ROOT_DIR
+
 """
 Create the rotamer IDs containing the charge and tautomer information.
 
@@ -25,7 +27,7 @@ The ID format is (all attached):
 Save into a csv file to use to with GNU parallel to run calculations on all rotamers.
 """
 
-dunbrack_json = "/cluster/project/jorner/lajacot/projects/aa-descriptors-library/data/angles_Dunbrack.json"
+dunbrack_json = ROOT_DIR / "data" / "angles_Dunbrack.json"
 with open(dunbrack_json, "r") as f:
     all_rotamers_data = json.load(f)
 

@@ -4,9 +4,9 @@ Save the probability data from NDRD library into a CSV file.
 
 import pandas as pd
 
-from aa_descriptors_library.config import NDRD_PATH
+from rotadel.common.config import NDRD_PATH, ROOT_DIR
 
-lib_file = "/cluster/project/jorner/lajacot/projects/aa-descriptors-library/data/Dunbrack_libraries/ndrd/NDRD_TCBIG.txt"
+lib_file = ROOT_DIR / "data" / "Dunbrack_libraries" / "ndrd" / "NDRD_TCBIG.txt"
 
 column_names = [
     "res",

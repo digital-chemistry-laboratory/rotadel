@@ -11,10 +11,10 @@ import numpy as np
 import pandas as pd
 from spyrmsd.rmsd import rmsd
 
-from aa_descriptors_library.io_atoms import read_geo
-from aa_descriptors_library.sql import get_xyz_from_sql
-from aa_descriptors_library.config import NDRD_PATH, SQL_PATH
-from aa_descriptors_library.constants import (
+from rotadel.common.io_atoms import read_geo
+from rotadel.common.sql import get_xyz_from_sql
+from rotadel.common.config import NDRD_PATH, SQL_PATH
+from rotadel.common.constants import (
     NUMBER_OF_CHI_ANGLES,
     ONE_TO_THREE_AA,
     RES_SPECIES,

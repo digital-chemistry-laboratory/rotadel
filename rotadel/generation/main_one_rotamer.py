@@ -8,10 +8,10 @@ import traceback
 import json
 import sqlite3
 
-from aa_descriptors_library.config import ANGLES_JSON_PATH
-from aa_descriptors_library.io import lock
-from aa_descriptors_library.rotamer import Rotamer
-from aa_descriptors_library.sql import init_sql_db
+from rotadel.common.config import ANGLES_JSON_PATH
+from rotadel.common.io import lock
+from rotadel.generation.rotamer import Rotamer
+from rotadel.common.sql import init_sql_db
 
 
 def parse_args():
