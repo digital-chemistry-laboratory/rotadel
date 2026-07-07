@@ -720,6 +720,9 @@ def query_average(
                 f"Sum of all rotamer probabilities is {prob_sum}, expected approximately 1.0"
             )
 
+        # Sidechain charge is constant across rotamers => override accumulated sum with exact value
+        avg_descriptors["charge_tot"] = charge
+
         return round_dict(avg_descriptors)
 
 
