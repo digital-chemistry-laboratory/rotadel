@@ -185,7 +185,7 @@ def get_descriptors_pdbs(
         num_workers: number of parallel worker processes to use for querying
     Returns:
         None, saves the results in two CSV files, one row per PDB structure
-            - "queries_rotamer_descriptors.csv": descriptors of closest rotamers for each given residue
+            - "queries_closest_descriptors.csv": descriptors of closest rotamers for each given residue
             - "queries_matching_rotamers.csv": ID, chi angles, and angle distance for each matching closest rotamer
     """
     if output_dir is None:
@@ -247,7 +247,7 @@ def get_descriptors_pdbs(
     descriptors_df, rotamers_df = results_into_dataframes(
         results, "closest", structure_labels, res_labels
     )
-    descriptors_df.to_csv(output_dir / "queries_rotamer_descriptors.csv")
+    descriptors_df.to_csv(output_dir / "queries_closest_descriptors.csv")
     rotamers_df.to_csv(output_dir / "queries_matching_rotamers.csv")
 
 

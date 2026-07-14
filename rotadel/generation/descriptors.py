@@ -66,7 +66,7 @@ def clean_atomic_descriptors(
             name_1 = atom_index_to_name[idx_1]
             name_2 = atom_index_to_name[idx_2]
             if name_1 in atom_names_to_keep and name_2 in atom_names_to_keep:
-                output_dict[f"{name_1}, {name_2}"] = (
+                output_dict[f"{name_1}-{name_2}"] = (
                     round(value, decimals) if decimals is not None else value
                 )
     else:
