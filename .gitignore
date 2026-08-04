@@ -24,8 +24,9 @@ logs
 data*/
 # All test folders and files
 test*
-# Analysis folder
+# Analysis and figures folders
 analysis
+visualisation
 
 ### Package related
 *.egg-info/
