@@ -112,23 +112,15 @@ def calc_descriptors(
     sasa = SASA(sidechain_el, sidechain_coords)
     sasa_polar = 0
     sasa_unpolar = 0
-    sasa_vol_polar = 0
-    sasa_vol_unpolar = 0
     for i, atom in enumerate(sidechain_el):
         sasa_atom = sasa.atom_areas[i + 1]  # 1-indexed in Morfeus
-        sasa_atom_vol = sasa.atom_volumes[i + 1]
         if atom in ["C", "H"]:
             sasa_unpolar += sasa_atom
-            sasa_vol_unpolar += sasa_atom_vol
         else:
             sasa_polar += sasa_atom
-            sasa_vol_polar += sasa_atom_vol
     descriptors["sasa_tot"] = round(sasa.area, 2)
     descriptors["sasa_polar"] = round(sasa_polar, 2)
     descriptors["sasa_unpolar"] = round(sasa_unpolar, 2)
-    descriptors["sasa_volume_tot"] = round(sasa.volume, 2)
-    descriptors["sasa_volume_polar"] = round(sasa_vol_polar, 2)
-    descriptors["sasa_volume_unpolar"] = round(sasa_vol_unpolar, 2)
 
     # Sterimol parameters
     sterimol = Sterimol(sidechain_el, sidechain_coords, dummy_index=1, attached_index=2)
