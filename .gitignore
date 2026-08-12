@@ -26,7 +26,7 @@ data*/
 test*
 # Analysis and figures folders
 analysis
-visualisation
+visualisation/opt_steps
 
 ### Package related
 *.egg-info/
