@@ -24,9 +24,10 @@ logs
 data*/
 # All test folders and files
 test*
-# Analysis and figures folders
+# Analysis and figures
 analysis
 visualisation/opt_steps
+*png
 
 ### Package related
 *.egg-info/
