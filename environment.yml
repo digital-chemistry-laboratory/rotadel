@@ -1,0 +1,12 @@
+channels:
+  - conda-forge
+dependencies:
+  - biopython
+  - mdtraj
+  - morfeus-ml # Version 0.8.0 was used to generate the database
+  - numpy
+  - openbabel
+  - pandas
+  - python>=3.10
+  - spyrmsd
+  - typing-extensions

@@ -1,0 +1,15 @@
+# Additional dependencies on top of environment.yml to run the code for the database generation
+# `conda env create -f environment.yml -n rotadel`
+# `conda env update -f environment-dev.yml -n rotadel`
+channels:
+  - conda-forge
+dependencies:
+  - jupyter
+  - libconeangle
+  - openmm
+  - pip
+  - python>=3.10,<3.12
+  - rdkit
+  - xtb  # The existing database was generated with the bleeding edge version of xtb commit 2b5cd48
+  - pip:
+      - PeptideBuilder
