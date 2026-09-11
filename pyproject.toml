@@ -5,9 +5,30 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "rotadel"
 version = "0.1.0"
+description = "Rotamer-dependent Amino acid Descriptors Library"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE*"]
+requires-python = ">=3.10"
 authors = [
     {name = "Lauriane Jacot-Descombes"},
 ]
+dependencies = [
+    "biopython",
+    "mdtraj",
+    "morfeus-ml",
+    "numpy",
+    "openbabel",
+    "pandas",
+    "spyrmsd",
+    "typing-extensions",
+]
+
+[project.urls]
+Homepage = "https://github.com/digital-chemistry-laboratory/rotadel"
 
 [tool.setuptools.packages.find]
 include = ["rotadel*"]
+
+[tool.setuptools.package-data]
+rotadel = ["py.typed"]
