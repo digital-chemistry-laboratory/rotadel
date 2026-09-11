@@ -655,8 +655,9 @@ def query_average(
     Returns:
         Dictionary with average descriptors weighted by the rotamers probability
     """
+    residue = residue.upper()
     if len(residue) == 1:
-        residue = ONE_TO_THREE_AA[residue.upper()]
+        residue = ONE_TO_THREE_AA[residue]
 
     if sql_path is None:
         sql_path = SQL_PATH
@@ -751,15 +752,19 @@ def parse_ndrd(
     """
     ndrd_step_10 = _read_ndrd(ndrd_csv)
 
+    residue = residue.upper()
     if len(residue) == 1:
-        residue = ONE_TO_THREE_AA[residue.upper()]
-    if left_neighbour is not None and len(left_neighbour) == 1:
-        left_neighbour = ONE_TO_THREE_AA[left_neighbour.upper()]
-    if right_neighbour is not None and len(right_neighbour) == 1:
-        right_neighbour = ONE_TO_THREE_AA[right_neighbour.upper()]
+        residue = ONE_TO_THREE_AA[residue]
+    if left_neighbour is not None:
+        left_neighbour = left_neighbour.upper()
+        if len(left_neighbour) == 1:
+            left_neighbour = ONE_TO_THREE_AA[left_neighbour]
+    if right_neighbour is not None:
+        right_neighbour = right_neighbour.upper()
+        if len(right_neighbour) == 1:
+            right_neighbour = ONE_TO_THREE_AA[right_neighbour]
 
     # Treat trans (PRO) and cis (CPR) prolines together
-    residue = residue.upper()
     target_res = [residue] if residue != "PRO" else [residue, "CPR"]
 
     # Get backbone probabilities from the NDRD library for a given residue...
