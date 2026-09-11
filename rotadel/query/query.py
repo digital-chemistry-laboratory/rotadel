@@ -159,8 +159,8 @@ def get_descriptors_pdbs(
     tautomers: Sequence[str | None] | None = None,
     output_dir: str | Path | None = None,
     num_workers: int = 1,
-) -> None:
-    """Query descriptors of closest rotamers for a list of PDB files and save results in CSV files.
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Query descriptors of closest rotamers for a list of PDB files.
 
     Give target residues either by PDB residue sequence number (`pdb_res_nums`) or by position in the sequence
     (`res_positions`, with `start_pdb_res_num` if the sequence does not start at 1 in the PDB file).
@@ -181,19 +181,17 @@ def get_descriptors_pdbs(
             If not given, default value will be deduced from residue name in PDB file
         start_pdb_res_num: PDB residue sequence number of the first residue of the chain of interest,
             used to convert res_positions to PDB residue sequence numbers
-        output_dir: directory to save the output CSV files
+        output_dir: optional directory to also save the returned DataFrames to CSV files
         num_workers: number of parallel worker processes to use for querying
     Returns:
-        None, saves the results in two CSV files, one row per PDB structure
-            - "queries_closest_descriptors.csv": descriptors of closest rotamers for each given residue
-            - "queries_matching_rotamers.csv": ID, chi angles, and angle distance for each matching closest rotamer
-    """
-    if output_dir is None:
-        output_dir = Path.cwd()
-    else:
-        output_dir = Path(output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True)
+        Tuple (descriptors_df, rotamers_df), one row per PDB structure:
+            - descriptors_df: descriptors of closest rotamers for each given residue,
+            - rotamers_df: ID, chi angles, and angle distance for each matching closest rotamer.
 
+        If output_dir is given, the DataFrames are also saved to CSV files in that directory:
+            - "queries_closest_descriptors.csv" for descriptors_df,
+            - "queries_matching_rotamers.csv" for rotamers_df.
+    """
     if charges is not None and pH is not None:
         raise ValueError("Specify either `charges` or `pH`, not both.")
 
@@ -247,8 +245,14 @@ def get_descriptors_pdbs(
     descriptors_df, rotamers_df = results_into_dataframes(
         results, "closest", structure_labels, res_labels
     )
-    descriptors_df.to_csv(output_dir / "queries_closest_descriptors.csv")
-    rotamers_df.to_csv(output_dir / "queries_matching_rotamers.csv")
+
+    if output_dir is not None:
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        descriptors_df.to_csv(output_dir / "queries_closest_descriptors.csv")
+        rotamers_df.to_csv(output_dir / "queries_matching_rotamers.csv")
+
+    return descriptors_df, rotamers_df
 
 
 def query_closest(
@@ -547,8 +551,8 @@ def get_descriptors_sequences(
     tautomers: Sequence[str | None] | None = None,
     output_dir: str | Path | None = None,
     num_workers: int = 1,
-) -> None:
-    """Query average descriptors for a list of amino acid sequences and save results in CSV file.
+) -> pd.DataFrame:
+    """Query average descriptors for a list of amino acid sequences.
     Args:
         sequences: list of amino acid sequences (one-letter codes)
         sequence_labels: labels for all sequences, to be used as index in output DataFrames
@@ -560,18 +564,13 @@ def get_descriptors_sequences(
             If not given, default value will be deduced from given pH or residue name
         tautomers: tautomers for each residue to query, must be None except for histidine.
             If not given, default value will be deduced from residue name
-        output_dir: directory to save the output CSV files
+        output_dir: optional directory to also save the returned DataFrame to CSV file
         num_workers: number of parallel worker processes to use for querying
     Returns:
-        None, saves the results in "queries_average_descriptors.csv", one row per sequence,
-            average descriptors weighted by rotamer probability for each given residue
+        descriptors_df, one row per sequence, average descriptors weighted by rotamer probability
+        for each given residue.
+        If output_dir is given, the DataFrame is also saved to "queries_average_descriptors.csv" in that directory.
     """
-    if output_dir is None:
-        output_dir = Path.cwd()
-    else:
-        output_dir = Path(output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True)
-
     if charges is not None and pH is not None:
         raise ValueError("Specify either `charges` or `pH`, not both.")
 
@@ -620,7 +619,13 @@ def get_descriptors_sequences(
     descriptors_df = results_into_dataframes(
         results, "average", sequence_labels, res_positions
     )
-    descriptors_df.to_csv(output_dir / "queries_average_descriptors.csv")
+
+    if output_dir is not None:
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        descriptors_df.to_csv(output_dir / "queries_average_descriptors.csv")
+
+    return descriptors_df
 
 
 def query_average(
