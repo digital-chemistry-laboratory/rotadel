@@ -1,0 +1,20 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: rotadel
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Lauriane
+    family-names: Jacot-Descombes
+    email: lauriane.jacot-descombes@chem.ethz.ch
+    orcid: "https://orcid.org/0009-0000-5385-6054"
+  - given-names: Kjell
+    family-names: Jorner
+    email: kjell.jorner@chem.ethz.ch
+    orcid: "https://orcid.org/0000-0002-4191-6790"
+repository-code: "https://github.com/digital-chemistry-laboratory/rotadel"
+license: MIT
