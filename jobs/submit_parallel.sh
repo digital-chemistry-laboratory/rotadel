@@ -11,8 +11,7 @@
 
 start_time=$(date +%s)
 
-# Load the required modules and environment
-mamba activate aa
+# Load the required modules
 export MY_MODULEPATH_ROOT=/cluster/project/jorner/modules_dcl/
 module use $MY_MODULEPATH_ROOT/Core
 module load xtb/bleed
@@ -21,8 +20,6 @@ module load xtb/bleed
 export LANGUAGE=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
 export LANG=en_US.UTF-8
-export PYTHONPATH=/cluster/project/jorner/lajacot/miniforge3/envs/aa/lib/python3.11/site-packages:$PYTHONPATH
-export PYTHONPATH=/cluster/project/jorner/lajacot/projects/rotadel:$PYTHONPATH
 export OMP_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
 export MKL_NUM_THREADS=1
@@ -60,7 +57,7 @@ env_parallel \
 --wd $PWD \
 --jobs ${SLURM_NTASKS} \
 --timeout 300 \
-"python -m rotadel.generation.main_one_rotamer {} ${angles_json} -o ${output_path}"
+"conda run -n aa python -m rotadel.generation.main_one_rotamer {} ${angles_json} -o ${output_path}"
 # --resume-failed \
 
 # Calculate run times

@@ -7,12 +7,9 @@
 start_time=$(date +%s)
 
 # Set up environment
-source activate /cluster/project/jorner/lajacot/miniforge3/envs/aa
 export MY_MODULEPATH_ROOT=/cluster/project/jorner/modules_dcl/
 module use $MY_MODULEPATH_ROOT/Core
 module load xtb/bleed
-export PYTHONPATH=/cluster/project/jorner/lajacot/miniforge3/envs/aa/lib/python3.11/site-packages:$PYTHONPATH
-export PYTHONPATH=/cluster/project/jorner/lajacot/projects/rotadel:$PYTHONPATH
 
 # Files paths
 angles_json="../data/angles_combined.json"
@@ -23,7 +20,7 @@ output_path="../data/batches_sql_output/rotamers_sql_${batch_number}.db"
 # Run
 echo "--- Run for ${input_file} ---"
 while IFS= read -r line || [ -n "$line" ]; do
-    python -m rotadel.generation.main_one_rotamer $line -a ${angles_json} -o ${output_path} --rerun_failed
+    conda run -n aa python -m rotadel.generation.main_one_rotamer $line -a ${angles_json} -o ${output_path} --rerun_failed
 done < ${input_file}
 
 # Calculate total run time

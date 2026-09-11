@@ -51,4 +51,4 @@ for rotamer_id, entry in all_rotamers_data.items():
         ids_species.append(f"{rotamer_id}c0")
 df = pd.DataFrame(ids_species)
 
-df.to_csv("data/keys_species_initial.csv", index=False, header=False)
+df.to_csv(ROOT_DIR / "data" / "keys_species_initial.csv", index=False, header=False)
