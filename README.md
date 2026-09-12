@@ -1,5 +1,7 @@
-![Logo Light](docs/images/logo_light_bg.svg#gh-light-mode-only)
-![Logo Dark](docs/images/logo_dark_bg.svg#gh-dark-mode-only)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/logo_dark_bg.svg">
+  <img src="docs/images/logo_light_bg.svg" alt="RotADeL logo">
+</picture>
 
 ![PyPI - License](https://img.shields.io/pypi/l/rotadel)
 [![PyPI](https://img.shields.io/pypi/v/rotadel)](https://pypi.org/project/rotadel/)

@@ -1,4 +1,4 @@
-# Generating the rotamer descriptor database
+# Generating the rotamer descriptors database
 
 This describes how to rerun the pipeline to regenerate `database/rotadel.db` from scratch.
 
