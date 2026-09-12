@@ -21,7 +21,8 @@ logs
 
 ### Project related
 # Data
-data*/
+data/
+database/backup_*
 # All test folders and files
 test*
 # Analysis and figures
