@@ -107,11 +107,11 @@ The residue charge (and, for histidine, the tautomer "E" or "D") can be given as
 
 ## Listing available descriptors
 
-The function `get_descriptors_names()` from [`rotadel/common/sql.py`](rotadel/common/sql.py) returns the list of all properties available in the `rotadel` database. If `only_mol=True` is given to this function, only the names of the molecular properties (excluding the atomic descriptors) are returned.
+The function `get_descriptors_names()` from [`rotadel/common/sql.py`](rotadel/common/sql.py) returns the list of all properties available in the 𝚁𝚘𝚝𝙰𝙳𝚎𝙻 database. If `only_mol=True` is given to this function, only the names of the molecular properties (excluding the atomic descriptors) are returned.
 
 ## Generate the database
 
-The pipeline to generate the rotamer descriptors database is described in [`rotadel/generation/README.md`](rotadel/generation/README.md).
+The pipeline to generate the 𝚁𝚘𝚝𝙰𝙳𝚎𝙻 descriptors database is described in [`rotadel/generation/README.md`](rotadel/generation/README.md).
 
 # How to cite
 
