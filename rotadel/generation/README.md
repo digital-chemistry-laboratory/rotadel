@@ -15,7 +15,7 @@ $ mkdir -p data/Dunbrack_libraries/rotamer
 $ cp <the obtained file> data/Dunbrack_libraries/rotamer/ALL_rotamers.lib
 ```
 
-### Neighbor-dependent ramachandran distributions (NDRD)
+### Neighbor-dependent Ramachandran distributions (NDRD)
 
 - Source: <http://dunbrack.fccc.edu/ndrd>
 - Place the `TCBIG` distribution file in the `rotadel` repository:

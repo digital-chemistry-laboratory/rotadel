@@ -78,7 +78,7 @@ The residue label can be given by its 1-letter or 3-letters amino acid code.
 
 ### Batch queries over sequences
 
-For a dataset of amino acid sequences `get_descriptors_sequences` queries descriptors for many residues at once (parallelisable with the `num_workers` argument) and returns a DataFrame, with one row per sequence, containing the averaged descriptors weighted by the rotamer probability for each given residue.
+For a dataset of amino acid sequences `get_descriptors_sequences` queries descriptors for many residues at once (parallelisable with the `num_workers` argument) and returns a DataFrame, with one row per sequence, containing the averaged descriptors weighted by the rotamer probability for each given residue. The weighted-average queries in `get_descriptors_sequences` use the rotamer probability taking into account its neighbouring residues.
 
 ```python
 >>> from rotadel.query import get_descriptors_sequences
@@ -103,7 +103,7 @@ The residue charge (and, for histidine, the tautomer "E" or "D") can be given as
 >>> query_average("His", tautomer="D")
 ```
 
-`query_closest` accepts the same `charge`/`tautomer`/`pH` arguments as `query_average`. The batch functions `get_descriptors_pdbs` and `get_descriptors_sequences` take the plural `charges`/`tautomers` (sequence of one value per target residue) instead.
+`query_closest` accepts the same `charge`/`tautomer`/`pH` arguments as `query_average`. The batch functions `get_descriptors_pdbs` and `get_descriptors_sequences` take the plural `charges`/`tautomers` (sequence of one value per target residue) instead (and same `pH` argument).
 
 ## Listing available descriptors
 
@@ -117,8 +117,8 @@ The pipeline to generate the 𝚁𝚘𝚝𝙰𝙳𝚎𝙻 descriptors database i
 
 A manuscript is in preparation:
 
-> Lauriane Jacot-Descombes, Kjell Jorner. *Rotamer-dependent Amino Acid Descriptors as Protein
-> Representation for Bioactivity Prediction*. 2026. (in preparation)
+> Lauriane Jacot-Descombes, Kjell Jorner. *Rotamer-Dependent Amino Acid Descriptors as Protein
+> and Peptide Representation for Reactivity and Property Prediction*. 2026. (in preparation)
 
 In the meantime, please cite this repository — see [`CITATION.cff`](CITATION.cff).
 
