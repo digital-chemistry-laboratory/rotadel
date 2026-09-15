@@ -1,8 +1,9 @@
 from pathlib import Path
 
+PACKAGE_DIR = Path(__file__).resolve().parent.parent
+SQL_PATH = PACKAGE_DIR / "database" / "rotadel.db"
+NDRD_PATH = PACKAGE_DIR / "database" / "ndrd_step10.csv"
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
-SQL_PATH = ROOT_DIR / "database" / "rotadel.db"
-NDRD_PATH = ROOT_DIR / "database" / "ndrd_step10.csv"
 ANGLES_JSON_PATH = ROOT_DIR / "data" / "angles_combined.json"
 
 # Config for xtb parallelisation

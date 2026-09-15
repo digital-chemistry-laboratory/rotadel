@@ -22,7 +22,7 @@ logs
 ### Project related
 # Data
 data/
-database/backup_*
+rotadel/database/backup_*
 # All test folders and files
 test*
 # Analysis and figures

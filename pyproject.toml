@@ -31,4 +31,4 @@ Homepage = "https://github.com/digital-chemistry-laboratory/rotadel"
 include = ["rotadel*"]
 
 [tool.setuptools.package-data]
-rotadel = ["py.typed"]
+rotadel = ["py.typed", "database/rotadel.db", "database/ndrd_step10.csv"]
