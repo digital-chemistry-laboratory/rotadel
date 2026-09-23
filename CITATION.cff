@@ -16,9 +16,10 @@ authors:
     family-names: Jorner
     email: kjell.jorner@chem.ethz.ch
     orcid: "https://orcid.org/0000-0002-4191-6790"
-identifiers:
-  - type: doi
-    value: 10.5281/zenodo.22772021
+# TODO: once rotadel released via GitHub->Zenodo integration, add:
+# identifiers:
+#   - type: doi
+#     value: <ROTADEL_ZENODO_CONCEPT_DOI>
 repository-code: "https://github.com/digital-chemistry-laboratory/rotadel"
 license: MIT
 preferred-citation:

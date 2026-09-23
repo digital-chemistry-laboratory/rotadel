@@ -1,6 +1,6 @@
 # Generating the 𝚁𝚘𝚝𝙰𝙳𝚎𝙻 database
 
-This describes how to rerun the pipeline to regenerate `database/rotadel.db` from scratch.
+This describes how to rerun the pipeline to regenerate [`rotadel/database/rotadel.db`](../database/rotadel.db) from scratch.
 
 ## 1. Obtain the Dunbrack libraries
 
@@ -9,7 +9,7 @@ Two libraries from the Dunbrack lab are required and must obtained on [their web
 ### Backbone-dependent rotamer library
 
 - Source: <http://dunbrack.fccc.edu/bbdep2010>
-- Place the rotamer library file in the `rotadel` repository:
+- Place the rotamer library file in the `rotadel` parent repository:
 ```shell
 $ mkdir -p data/Dunbrack_libraries/rotamer
 $ cp <the obtained file> data/Dunbrack_libraries/rotamer/ALL_rotamers.lib
@@ -18,7 +18,7 @@ $ cp <the obtained file> data/Dunbrack_libraries/rotamer/ALL_rotamers.lib
 ### Neighbor-dependent Ramachandran distributions (NDRD)
 
 - Source: <http://dunbrack.fccc.edu/ndrd>
-- Place the `TCBIG` distribution file in the `rotadel` repository:
+- Place the `TCBIG` distribution file in the `rotadel` parent repository:
 ```shell
 $ mkdir -p data/Dunbrack_libraries/ndrd
 $ cp <the obtained TCBIG file> data/Dunbrack_libraries/ndrd/NDRD_TCBIG.txt
@@ -26,7 +26,7 @@ $ cp <the obtained TCBIG file> data/Dunbrack_libraries/ndrd/NDRD_TCBIG.txt
 
 ## 2. Regenerate the intermediate data files
 
-Each step below depends on the output(s) of the previous ones and must be performed in order.
+Each step below depends on the output(s) of the previous ones and must be performed in order. Each path is given from the `rotadel` parent repository.
 
 1. Extract angles and probabilities from Dunbrack rotamer library and generate ID for each rotamer:
   ```shell
@@ -54,7 +54,7 @@ Each step below depends on the output(s) of the previous ones and must be perfor
   Reads `data/angles_Dunbrack.json` → writes `data/angles_single_AAs.json` and `data/angles_combined.json`.
 
 5. Curate the rotamer data and prepare batches to submit the descriptor calculation jobs:
-   - Run `prepare_keys.ipynb` top to bottom.
+   - Run [`rotadel/generation/prepare_keys.ipynb`](prepare_keys.ipynb) top to bottom.
    
    Reads `data/angles_Dunbrack.json` and `data/keys_species_initial.csv` → write `data/keys_species_cleaned.csv`
    and, in the last cell, splits it into `data/batches_keys_species_6490_cleaned/batch_*`.

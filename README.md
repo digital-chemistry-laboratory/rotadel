@@ -6,7 +6,8 @@
 ![Paper](https://img.shields.io/badge/paper-in%20preparation-lightgrey)
 <!-- TODO: once paper is published, replace the badge above with:
 [![Paper](https://img.shields.io/badge/paper-<PAPER_DOI>-blue)](https://doi.org/<PAPER_DOI>) -->
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22772020.svg)](https://doi.org/10.5281/zenodo.22772020)
+<!-- TODO: once rotadel released via GitHub->Zenodo integration, add here:
+[![DOI](https://zenodo.org/badge/DOI/<ROTADEL_ZENODO_CONCEPT_DOI>.svg)](https://doi.org/<ROTADEL_ZENODO_CONCEPT_DOI>) -->
 ![PyPI - License](https://img.shields.io/pypi/l/rotadel)
 [![PyPI](https://img.shields.io/pypi/v/rotadel)](https://pypi.org/project/rotadel/)
 ![Python requires](https://img.shields.io/badge/dynamic/json?query=info.requires_python&label=python&url=https%3A%2F%2Fpypi.org%2Fpypi%2Frotadel%2Fjson)
@@ -23,7 +24,7 @@
 $ pip install rotadel
 ```
 
-Generating the descriptor database itself requires additional dependencies — see `environment-dev.yml`.
+Generating the descriptor database itself requires additional dependencies — see [`environment-dev.yml`](environment-dev.yml).
 
 # Usage
 
@@ -130,4 +131,5 @@ In the meantime, please cite this repository — see [`CITATION.cff`](CITATION.c
 
 The code and data to reproduce the study of the associated publication can be found on Zenodo: [10.5281/zenodo.22772031](https://doi.org/10.5281/zenodo.22772031).
 
-The exact version of `rotadel` used for the publication is also archived on Zenodo: [10.5281/zenodo.22772021](https://doi.org/10.5281/zenodo.22772021).
+The exact version of `rotadel` used for the publication is also archived on Zenodo.
+<!-- TODO: once rotadel released via GitHub->Zenodo integration, add link to that release's version DOI -->
