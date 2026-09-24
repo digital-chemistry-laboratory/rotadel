@@ -13,7 +13,7 @@ from spyrmsd.rmsd import rmsd
 
 from rotadel.common.io_atoms import read_geo
 from rotadel.common.sql import get_xyz_from_sql
-from rotadel.common.config import NDRD_PATH, SQL_PATH
+from rotadel.common.config import get_ndrd_path, get_sql_path
 from rotadel.common.constants import (
     NUMBER_OF_CHI_ANGLES,
     ONE_TO_THREE_AA,
@@ -290,7 +290,7 @@ def query_closest(
         and descriptors of the closest rotamer found in the library
     """
     if sql_path is None:
-        sql_path = SQL_PATH
+        sql_path = get_sql_path()
 
     if charge is not None and pH is not None:
         raise ValueError("Specify either `charge` or `pH`, not both.")
@@ -402,7 +402,7 @@ def query_batch(
         List of query results in the same order as the given queries
     """
     if sql_path is None:
-        sql_path = SQL_PATH
+        sql_path = get_sql_path()
     path_kwargs: dict = {"sql_path": str(sql_path)}
     if ndrd_path is not None:
         path_kwargs["ndrd_path"] = str(ndrd_path)
@@ -660,9 +660,9 @@ def query_average(
         residue = ONE_TO_THREE_AA[residue]
 
     if sql_path is None:
-        sql_path = SQL_PATH
+        sql_path = get_sql_path()
     if ndrd_path is None:
-        ndrd_path = NDRD_PATH
+        ndrd_path = get_ndrd_path()
 
     if charge is not None and pH is not None:
         raise ValueError("Specify either `charge` or `pH`, not both.")
@@ -895,7 +895,7 @@ def query_closest_rmsd(
         Dictionary with ID, RMSD, side-chain chi angles, and descriptors of the closest rotamer found in the library
     """
     if sql_path is None:
-        sql_path = SQL_PATH
+        sql_path = get_sql_path()
 
     el_target, coords_target = read_geo(target_rotamer_xyz)
     # Remove hydrogens

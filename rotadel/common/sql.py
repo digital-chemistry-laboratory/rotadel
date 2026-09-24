@@ -4,7 +4,7 @@ import json
 import numpy as np
 import pandas as pd
 
-from rotadel.common.config import SQL_PATH
+from rotadel.common.config import get_sql_path
 
 
 def init_sql_db(db_path: str | Path) -> None:
@@ -57,7 +57,7 @@ def display_rotamer_data(rotamer_id: str, sql_path: str | Path | None = None) ->
         sql_path: path to the SQL database file
     """
     if sql_path is None:
-        sql_path = SQL_PATH
+        sql_path = get_sql_path()
 
     with sqlite3.connect(sql_path) as conn:
         cursor = conn.cursor()
@@ -113,7 +113,7 @@ def get_xyz_from_sql(
         Elements and xyz coordinates of the rotamer
     """
     if sql_path is None:
-        sql_path = SQL_PATH
+        sql_path = get_sql_path()
 
     with sqlite3.connect(sql_path) as conn:
         cursor = conn.cursor()
@@ -143,7 +143,7 @@ def get_descriptors(
         DataFrame with rotamer IDs, residue, charge, tautomer and descriptors
     """
     if sql_path is None:
-        sql_path = SQL_PATH
+        sql_path = get_sql_path()
 
     query = """SELECT rotamer_id, res, charge, tautomer, descriptors FROM rotamers_data
             WHERE (? IS NULL OR res = ?)
@@ -179,7 +179,7 @@ def get_descriptors_names(
         Names of all the descriptors or only the molecular ones
     """
     if sql_path is None:
-        sql_path = SQL_PATH
+        sql_path = get_sql_path()
 
     with sqlite3.connect(sql_path) as conn:
         cur = conn.cursor()
@@ -203,7 +203,7 @@ def get_descriptors_names(
 def count_rotamers_in_sql(sql_path: Path | str | None = None) -> int:
     """Count the number of rotamers in the SQL database."""
     if sql_path is None:
-        sql_path = SQL_PATH
+        sql_path = get_sql_path()
 
     with sqlite3.connect(sql_path) as conn:
         cur = conn.cursor()

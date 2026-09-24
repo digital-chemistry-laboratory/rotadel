@@ -24,7 +24,28 @@
 $ pip install rotadel
 ```
 
-Generating the descriptor database itself requires additional dependencies — see [`environment-dev.yml`](environment-dev.yml).
+## Descriptors database
+
+The pre-computed descriptors database is downloaded automatically from Zenodo and cached locally the first time it is needed.
+
+In case this automatic download fails (e.g. if the package is installed on a machine without internet access), follow the steps below to manually get the database files:
+
+1. Download both `rotadel.db` and `ndrd_step10.csv` from the [database's Zenodo record](https://doi.org/10.5281/zenodo.22772020).
+2. Place them both into the same empty folder on the machine where `rotadel` is installed.
+3. Before using `rotadel`, point it at that folder:
+    ```shell
+    $ export ROTADEL_DATABASE_DIR=<path_to_that_folder>
+    ```
+
+To regenerate the database from scratch instead of downloading it, see [Generate the database](#generate-the-database).
+
+## Uninstall
+
+To remove both the `rotadel` package and its automatically downloaded database, run:
+```shell
+$ python -c "from rotadel.common.config import clear_database_cache; clear_database_cache()"
+$ pip uninstall rotadel
+```
 
 # Usage
 
@@ -114,7 +135,7 @@ The function `get_descriptors_names()` from [`rotadel/common/sql.py`](rotadel/co
 
 ## Generate the database
 
-The pipeline to generate the 𝚁𝚘𝚝𝙰𝙳𝚎𝙻 descriptors database is described in [`rotadel/generation/README.md`](rotadel/generation/README.md).
+The pipeline to generate the 𝚁𝚘𝚝𝙰𝙳𝚎𝙻 descriptors database is described in [`rotadel/generation/README.md`](rotadel/generation/README.md). Rerunning the database generation requires additional dependencies on top of the base installation — see [`environment-dev.yml`](environment-dev.yml).
 
 # How to cite
 

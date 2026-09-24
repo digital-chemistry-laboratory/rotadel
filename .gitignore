@@ -21,8 +21,7 @@ logs
 
 ### Project related
 # Data
-data/
-rotadel/database/backup_*
+data*/
 # All test folders and files
 test*
 # Analysis and figures
@@ -32,3 +31,4 @@ visualisation/opt_steps
 
 ### Package related
 *.egg-info/
+build/

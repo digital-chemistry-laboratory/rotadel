@@ -39,6 +39,7 @@ def main(db_folder: Iterable[Path], merged_db_path: Path | str | None = None) ->
     merged_db_path = Path(merged_db_path)
     if merged_db_path.exists():
         raise FileExistsError(f"{merged_db_path} already exists.")
+    merged_db_path.parent.mkdir(parents=True, exist_ok=True)
 
     db_files = sorted(Path(db_folder).glob("*.db"))
 
@@ -57,6 +58,7 @@ def main(db_folder: Iterable[Path], merged_db_path: Path | str | None = None) ->
                         f"INSERT INTO {table} VALUES ({placeholders})", rows
                     )
         merged_conn.commit()
+    print(f"Merged database written to: {merged_db_path}")
 
     # Print execution time and count in merged db
     elapsed_seconds = time.perf_counter() - start_time

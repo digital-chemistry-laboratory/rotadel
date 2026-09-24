@@ -32,4 +32,6 @@ lib_df_step_10 = lib_df.loc[
     (lib_df["phi"] % 10 == 0) & (lib_df["psi"] % 10 == 0)
 ].copy()
 
+NDRD_PATH.parent.mkdir(parents=True, exist_ok=True)
 lib_df_step_10.to_csv(NDRD_PATH, index=False)
+print(f"NDRD csv written to: {NDRD_PATH}")

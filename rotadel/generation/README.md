@@ -1,6 +1,8 @@
 # Generating the 𝚁𝚘𝚝𝙰𝙳𝚎𝙻 database
 
-This describes how to rerun the pipeline to regenerate [`rotadel/database/rotadel.db`](../database/rotadel.db) from scratch.
+This describes how to rerun the pipeline to regenerate `rotadel.db` from scratch.
+
+The generation pipeline reads/writes the database files at `rotadel.common.config.DATABASE_DIR` (see [config.py](../common/config.py) for details). A custom directory can be set with the `ROTADEL_DATABASE_DIR` environment variable (`export ROTADEL_DATABASE_DIR=<path_to_custom_dir>`) if needed.
 
 ## 1. Obtain the Dunbrack libraries
 
@@ -38,7 +40,7 @@ Each step below depends on the output(s) of the previous ones and must be perfor
   ```shell
   $ python rotadel/generation/ndrd_to_csv.py
   ```
-  Reads `data/Dunbrack_libraries/ndrd/NDRD_TCBIG.txt` → writes `rotadel/database/ndrd_step10.csv`.
+  Reads `data/Dunbrack_libraries/ndrd/NDRD_TCBIG.txt` → writes `ndrd_step10.csv` to `rotadel.common.config.DATABASE_DIR`.
 
 3. Create the rotamer IDs containing the charge and tautomer information:
   ```shell
@@ -71,5 +73,5 @@ Submit the batches produced above as SLURM jobs from `jobs/`:
 ## 4. Merge into the final database
 
 ```shell
-$ python rotadel/generation/merge_sql.py data/batches_sql_output -o rotadel/database/rotadel.db
+$ python rotadel/generation/merge_sql.py data/batches_sql_output
 ```

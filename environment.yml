@@ -7,6 +7,9 @@ dependencies:
   - numpy
   - openbabel
   - pandas
+  - pooch
   - python>=3.10
+  - requests
   - spyrmsd
+  - tqdm
   - typing-extensions
